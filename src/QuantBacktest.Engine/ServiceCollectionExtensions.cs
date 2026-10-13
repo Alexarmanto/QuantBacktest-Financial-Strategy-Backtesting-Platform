@@ -13,3 +13,5 @@ public static class ServiceCollectionExtensions
         return services;
     }
 }
+
+// Scope rule test, do not merge.
