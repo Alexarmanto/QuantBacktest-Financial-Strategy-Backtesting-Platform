@@ -1,0 +1,19 @@
+<Project>
+  <!--
+    Central package management: every NuGet version lives here, nowhere else.
+    Add a package with `dotnet add <project> package <Name>` (it updates this file),
+    and only the packages allowed in your docs/parts/PART-N.md. Additive changes only.
+    FluentAssertions stays on 7.x (Apache 2.0); version 8 changed its license. Do not upgrade it.
+  -->
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.0" />
+    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+    <PackageVersion Include="xunit" Version="2.9.3" />
+    <PackageVersion Include="xunit.runner.visualstudio" Version="3.1.0" />
+    <PackageVersion Include="FluentAssertions" Version="7.2.0" />
+    <PackageVersion Include="coverlet.collector" Version="6.0.4" />
+  </ItemGroup>
+</Project>

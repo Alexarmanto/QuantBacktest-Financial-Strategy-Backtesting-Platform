@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <RootNamespace>QuantBacktest.Web</RootNamespace>
+    <UserSecretsId>6d3f1c52-8a4e-4b0e-9c57-2f7a1d9e4b63</UserSecretsId>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\QuantBacktest.Core\QuantBacktest.Core.csproj" />
+    <ProjectReference Include="..\QuantBacktest.Data\QuantBacktest.Data.csproj" />
+    <ProjectReference Include="..\QuantBacktest.Reports\QuantBacktest.Reports.csproj" />
+    <ProjectReference Include="..\QuantBacktest.Strategies\QuantBacktest.Strategies.csproj" />
+    <ProjectReference Include="..\QuantBacktest.Analytics\QuantBacktest.Analytics.csproj" />
+    <ProjectReference Include="..\QuantBacktest.Engine\QuantBacktest.Engine.csproj" />
+    <ProjectReference Include="..\QuantBacktest.Fakes\QuantBacktest.Fakes.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="QuantBacktest.Web.Tests" />
+  </ItemGroup>
+</Project>

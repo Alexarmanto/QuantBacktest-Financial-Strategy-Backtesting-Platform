@@ -1,0 +1,34 @@
+name: Task
+description: A unit of work inside one part
+body:
+  - type: dropdown
+    id: part
+    attributes:
+      label: Part
+      options:
+        - Part 1 - Data, reports, Docker
+        - Part 2 - Strategies, custom rules, Monte Carlo
+        - Part 3 - Engine, metrics, heatmap
+        - Part 4 - Web UI
+    validations:
+      required: true
+  - type: textarea
+    id: goal
+    attributes:
+      label: Goal
+      description: What must exist when this is done, in one or two sentences.
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: A checklist a reviewer can verify.
+      placeholder: "- [ ] ...\n- [ ] ..."
+    validations:
+      required: true
+  - type: input
+    id: spec
+    attributes:
+      label: Spec reference
+      description: The requirement id in docs/parts/PART-N.md (for example P3-E4).

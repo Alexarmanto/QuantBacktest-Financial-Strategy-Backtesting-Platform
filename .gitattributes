@@ -1,0 +1,11 @@
+* text=auto eol=lf
+
+*.sh text eol=lf
+*.sln text eol=crlf
+
+*.pdf binary
+*.png binary
+*.jpg binary
+*.gif binary
+*.zip binary
+*.woff2 binary

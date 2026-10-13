@@ -1,0 +1,6 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\QuantBacktest.Data\QuantBacktest.Data.csproj" />
+    <ProjectReference Include="..\..\src\QuantBacktest.Fakes\QuantBacktest.Fakes.csproj" />
+  </ItemGroup>
+</Project>

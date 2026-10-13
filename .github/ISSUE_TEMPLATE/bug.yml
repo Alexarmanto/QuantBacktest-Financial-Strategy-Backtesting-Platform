@@ -1,0 +1,31 @@
+name: Bug
+description: Something does not behave as specified
+labels: [bug]
+body:
+  - type: input
+    id: part
+    attributes:
+      label: Part concerned
+      placeholder: "Part 3"
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: Quote the rule from docs/CONTRACT.md or docs/parts/PART-N.md if there is one.
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      description: Commands, symbol, strategy, parameters. Never paste an API key.
+    validations:
+      required: true

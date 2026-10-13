@@ -1,0 +1,43 @@
+# Build output
+bin/
+obj/
+out/
+publish/
+TestResults/
+coverage/
+*.trx
+
+# IDE
+.vs/
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.user
+*.suo
+*.DotSettings.user
+
+# Secrets and local config (NEVER commit an API key)
+.env
+.env.*
+!.env.example
+appsettings.*.local.json
+secrets.json
+
+# Local data (cache database, generated reports)
+App_Data/
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+reports-output/
+
+# Claude Code local files (shared rules live in CLAUDE.md and docs/)
+.claude/settings.local.json
+CLAUDE.local.md
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Node (only if someone vendors JS with npm)
+node_modules/

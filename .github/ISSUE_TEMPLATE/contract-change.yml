@@ -1,0 +1,35 @@
+name: Contract change
+description: Propose a change to Core, Fakes or docs/CONTRACT.md (needs approval from all members)
+labels: [contract-change]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What is blocking you or ambiguous in the current contract? Quote the exact type, interface or rule.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed change
+      description: The exact new signature or rule, as code or as a CONTRACT.md diff.
+    validations:
+      required: true
+  - type: textarea
+    id: impact
+    attributes:
+      label: Impact on each part
+      description: What Part 1, 2, 3 and 4 must change once this is merged.
+      placeholder: "Part 1: ...\nPart 2: ...\nPart 3: ...\nPart 4: ..."
+    validations:
+      required: true
+  - type: dropdown
+    id: alternatives
+    attributes:
+      label: Can the part work around it without a contract change?
+      options:
+        - "No, it is blocking"
+        - "Yes, but the workaround is ugly"
+    validations:
+      required: true

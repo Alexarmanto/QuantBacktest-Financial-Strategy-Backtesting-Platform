@@ -1,0 +1,40 @@
+# Auto-requests reviewers. The real rules are in docs/GIT_WORKFLOW.md.
+# Part 1 Alexandre Tung (owner) @Alexarmanto | Part 2 Victor Haegeman @VictorHaegeman
+# Part 3 Eloi Dumas @d-elmus | Part 4 Alexis Launay-Schapman @AlexisLS05
+
+*                                      @Alexarmanto
+
+/src/QuantBacktest.Data/               @Alexarmanto
+/src/QuantBacktest.Reports/            @Alexarmanto
+/tests/QuantBacktest.Data.Tests/       @Alexarmanto
+/tests/QuantBacktest.Reports.Tests/    @Alexarmanto
+/data/seed/                            @Alexarmanto
+/Dockerfile                            @Alexarmanto
+/docker-compose.yml                    @Alexarmanto
+
+/src/QuantBacktest.Strategies/         @VictorHaegeman
+/src/QuantBacktest.Analytics/          @VictorHaegeman
+/tests/QuantBacktest.Strategies.Tests/ @VictorHaegeman
+/tests/QuantBacktest.Analytics.Tests/  @VictorHaegeman
+/docs/report/                          @VictorHaegeman
+/docs/user-manual/                     @VictorHaegeman
+
+/src/QuantBacktest.Engine/             @d-elmus
+/tests/QuantBacktest.Engine.Tests/     @d-elmus
+
+/src/QuantBacktest.Web/                @AlexisLS05
+/tests/QuantBacktest.Web.Tests/        @AlexisLS05
+
+# The contract concerns everybody.
+/src/QuantBacktest.Core/               @Alexarmanto @VictorHaegeman @d-elmus @AlexisLS05
+/src/QuantBacktest.Fakes/              @Alexarmanto @VictorHaegeman @d-elmus @AlexisLS05
+/tests/QuantBacktest.Core.Tests/       @Alexarmanto @VictorHaegeman @d-elmus @AlexisLS05
+/tests/QuantBacktest.Fakes.Tests/      @Alexarmanto @VictorHaegeman @d-elmus @AlexisLS05
+/docs/CONTRACT.md                      @Alexarmanto @VictorHaegeman @d-elmus @AlexisLS05
+/docs/parts/                           @Alexarmanto @VictorHaegeman @d-elmus @AlexisLS05
+
+# Repository rules and automation: owner.
+/.github/                              @Alexarmanto
+/scripts/                              @Alexarmanto
+/CLAUDE.md                             @Alexarmanto
+/docs/GIT_WORKFLOW.md                  @Alexarmanto
