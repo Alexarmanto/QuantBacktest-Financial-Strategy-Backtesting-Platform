@@ -25,7 +25,7 @@ Ce fichier est lu automatiquement à chaque session. Il est **identique pour les
 1. **Périmètre** : modifie uniquement les fichiers de la section « Fichiers que tu possèdes » de la notice. La CI refuse la PR sinon.
 2. **Contrat gelé** : jamais de modification de `src/QuantBacktest.Core`, `src/QuantBacktest.Fakes`, `tests/QuantBacktest.Core.Tests`, `tests/QuantBacktest.Fakes.Tests`, `docs/CONTRACT.md` ou `docs/parts/` hors d'une branche `contract/`. Si le contrat bloque : arrête-toi, explique le problème et propose le texte d'une issue « Contract change ».
 3. **N'invente rien** : une ambiguïté se règle en demandant à l'humain. La notice et le contrat sont la seule source de vérité ; les `Fakes` ne sont **pas** une référence de comportement.
-4. **Git** : jamais de push sur `main`, jamais de `--force`, jamais de réécriture d'historique publié, jamais de merge de sa propre PR.
+4. **Git** : jamais de push sur `main`, jamais de `--force`, jamais de réécriture d'historique publié, jamais de merge d'une PR rouge. L'auteur merge lui-même sa PR (« Squash and merge ») dès que la CI est verte et le périmètre respecté, sans attendre d'approbation ; une PR `contract/` attend toujours les 3 approbations.
 5. **Secrets** : la clé Alpha Vantage ne va jamais dans le code, `appsettings*.json`, un test, un log, un commit ou un `docker-compose.yml`. Elle vit dans les user-secrets (`AlphaVantage:ApiKey`) ou la variable d'environnement `AlphaVantage__ApiKey` (fichier `.env` local, ignoré par Git).
 6. **Ne commite jamais** : `bin/`, `obj/`, `*.db`, `App_Data/`, PDF générés, `.env`.
 7. **Paquets NuGet** : uniquement ceux autorisés par la notice, ajoutés avec `dotnet add <projet> package <Nom>` (versions dans `Directory.Packages.props`, jamais dans un `.csproj`).
@@ -63,7 +63,7 @@ bash scripts/check-scope.sh "$(git branch --show-current)" origin/main   # véri
 3. Implémente dans le périmètre, tests en même temps que le code.
 4. `dotnet build -warnaserror` et `dotnet test` verts ; `scripts/check-scope.sh` vert.
 5. Commit `type(scope): summary` en anglais ; n'ajoute que des fichiers du périmètre (jamais `git add -A` à l'aveugle).
-6. `git fetch origin && git merge origin/main`, rebuild, retest, push, PR avec le template rempli.
+6. `git fetch origin && git merge origin/main`, rebuild, retest, push, PR avec le template rempli, puis « Squash and merge » une fois la CI verte (sauf PR `contract/`).
 7. Rappelle à l'humain les captures 📸 de cette PR.
 
 ## Fin de tâche
