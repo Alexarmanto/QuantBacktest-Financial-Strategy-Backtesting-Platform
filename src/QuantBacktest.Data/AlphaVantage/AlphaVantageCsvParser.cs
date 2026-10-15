@@ -35,7 +35,7 @@ internal sealed class AlphaVantageCsvParser(ILogger<AlphaVantageCsvParser> logge
             AdjustedHeader => true,
             _ => throw new MarketDataException(
                 MarketDataErrorKind.InvalidResponse,
-                "Alpha Vantage returned data in an unexpected format."),
+                "The price data has an unexpected format."),
         };
         var fieldCount = isAdjusted ? 8 : 6;
 
@@ -65,7 +65,7 @@ internal sealed class AlphaVantageCsvParser(ILogger<AlphaVantageCsvParser> logge
         {
             throw new MarketDataException(
                 MarketDataErrorKind.InvalidResponse,
-                "Alpha Vantage returned no valid price bar.");
+                "The price data contains no valid bar.");
         }
 
         var bars = barsByDate.Values.OrderBy(bar => bar.Date).ToList();
