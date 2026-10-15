@@ -95,6 +95,12 @@ Refusals arrive with HTTP 200 as a JSON `Information` message, even when CSV is 
 - Page 1: settings, the "not adjusted" warning when needed, the 13 metrics against buy & hold and the equity curve.
   Page 2: the strategy drawdown, and the closes with the price indicators and buy (up) and sell (down) triangles at
   the fill prices. Then the trade log: every field of every trade, the header repeated on each page.
+- When a Monte Carlo result is given, a last page shows the two histograms, the P5 to P95 percentiles of final returns
+  and drawdowns, the probability of loss, the values of the actual trade order and the reminder that trade-level
+  drawdowns are not comparable with the bar-level maximum drawdown. Oscillator indicators (RSI...) get their own chart
+  below the price, with their reference lines.
+- `BacktestResult` does not carry the rules of a no-code strategy, so the generator reads them from Part 2's
+  `IStrategyCatalog` (a Core interface, injected) for `custom-*` ids only, and prints the entry and exit rules on page 1.
 - The trades CSV follows the contract format exactly (invariant culture, `
 ` line endings, header always present,
   RFC 4180 quoting if a field ever needed it).
