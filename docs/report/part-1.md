@@ -57,6 +57,19 @@ Refusals arrive with HTTP 200 as a JSON `Information` message, even when CSV is 
   The origin of a series becomes `Mixed` as soon as bars of another origin are added; a series is adjusted only if
   every one of its bars comes from an adjusted source.
 
+### Market data service
+
+- `GetSeriesAsync` without refresh returns the cache when it has data, without any API call, so a backtest gives the
+  same result every time. An empty cache is filled from the seed file when there is one, otherwise from the API.
+  With `forceRefresh`, the API is called and the bars are merged; a failure leaves the cache untouched.
+- Seed files (`data/seed/`) are snapshots of the free Alpha Vantage endpoints taken on 2026-10-15: 100 daily bars and
+  the weekly adjusted history since 1999 for `AAPL`, `MSFT`, `SPY` and `JPM`. They make the application usable without
+  an API key, for example in Docker.
+- Quota: each HTTP request is counted per UTC day before it is sent, so a failed request counts too. The quota is
+  checked first, then the key; a missing key sends nothing and counts nothing.
+- Concurrency: one lock per symbol and timeframe, and simultaneous calls share the download in progress, so ten
+  simultaneous calls send one HTTP request. A caller that cancels stops waiting without cancelling the shared download.
+
 ## How it works
 
 ## Tests

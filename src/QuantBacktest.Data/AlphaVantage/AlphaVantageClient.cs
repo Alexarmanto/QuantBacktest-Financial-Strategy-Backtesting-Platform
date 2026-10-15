@@ -37,9 +37,7 @@ internal sealed class AlphaVantageClient(
         // D4, P1-D2: no key, no request.
         if (!HasApiKey)
         {
-            throw new MarketDataException(
-                MarketDataErrorKind.MissingApiKey,
-                "The Alpha Vantage API key is not configured. Set AlphaVantage:ApiKey in user-secrets or the AlphaVantage__ApiKey environment variable.");
+            throw MissingApiKey();
         }
 
         var body = await DownloadAsync(BuildUri(symbol, timeframe), symbol, timeframe, cancellationToken);
@@ -54,6 +52,10 @@ internal sealed class AlphaVantageClient(
 
         return parser.Parse(body, $"{symbol} {timeframe} (Alpha Vantage)");
     }
+
+    public static MarketDataException MissingApiKey() => new(
+        MarketDataErrorKind.MissingApiKey,
+        "The Alpha Vantage API key is not configured. Set AlphaVantage:ApiKey in user-secrets or the AlphaVantage__ApiKey environment variable.");
 
     private async Task<string> DownloadAsync(Uri uri, string symbol, Timeframe timeframe, CancellationToken cancellationToken)
     {
