@@ -31,6 +31,10 @@ internal sealed class BacktestReportDocument(BacktestResult result, DateTimeOffs
             {
                 column.Spacing(10);
                 ComposeSummaryPage(column);
+                column.Item().PageBreak();
+                ComposeChartsPage(column);
+                column.Item().PageBreak();
+                ComposeTradeLog(column);
             });
             page.Footer().Row(row =>
             {
@@ -98,6 +102,55 @@ internal sealed class BacktestReportDocument(BacktestResult result, DateTimeOffs
         });
 
         column.Item().Image(ChartRenderer.Equity(result)).FitWidth();
+    }
+
+    /// <summary>P1-R3: drawdown, then closes with the Price-pane indicators and the trade markers.</summary>
+    private void ComposeChartsPage(ColumnDescriptor column)
+    {
+        column.Item().Text("Drawdown and trades").FontSize(12).Bold();
+        column.Item().Image(ChartRenderer.Drawdown(result)).FitWidth();
+        column.Item().Image(ChartRenderer.Price(result)).FitWidth();
+        column.Item().Text("Triangles: buy (up) and sell (down) at the fill price of each trade.").FontSize(7).FontColor(Colors.Grey.Darken1);
+    }
+
+    /// <summary>P1-R4: every trade, alternating rows, the header repeated on each page, nothing truncated.</summary>
+    private void ComposeTradeLog(ColumnDescriptor column)
+    {
+        column.Item().Text("Trade log").FontSize(12).Bold();
+        var rows = ReportContent.Trades(result);
+        if (rows.Count == 0)
+        {
+            column.Item().Text(ReportContent.NoTrades).Italic();
+            return;
+        }
+
+        column.Item().Table(table =>
+        {
+            table.ColumnsDefinition(columns =>
+            {
+                columns.ConstantColumn(26);
+                foreach (var width in new float[] { 5, 5, 5, 5, 5, 4, 5, 5, 6, 3 })
+                {
+                    columns.RelativeColumn(width);
+                }
+            });
+            table.Header(header =>
+            {
+                foreach (var title in ReportContent.TradeColumns)
+                {
+                    HeaderCell(header.Cell(), title);
+                }
+            });
+
+            for (var index = 0; index < rows.Count; index++)
+            {
+                var background = index % 2 == 0 ? Colors.White : Colors.Grey.Lighten4;
+                foreach (var value in rows[index])
+                {
+                    table.Cell().Background(background).Padding(2).Text(value).FontSize(7);
+                }
+            }
+        });
     }
 
     private static void HeaderCell(IContainer cell, string text)

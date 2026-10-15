@@ -1,4 +1,6 @@
 using System.Text;
+using System.Text.RegularExpressions;
+using QuantBacktest.Core.Models;
 using Microsoft.Extensions.DependencyInjection;
 using QuantBacktest.Core.Abstractions;
 using QuantBacktest.Reports.Charts;
@@ -59,6 +61,38 @@ public class PdfReportGeneratorTests
     }
 
     [Fact]
+    public void GeneratePdf_PutsTheChartsOnPage2AndTheTradeLogAfter() // P1-R2, P1-R3, P1-R4
+        => PageCount(CreateGenerator().GeneratePdf(TestResults.Create(tradeCount: 3))).Should().Be(3);
+
+    [Fact]
+    public void GeneratePdf_ThousandTrades_SpreadsTheTradeLogOverSeveralPages() // P1-R4: nothing truncated
+        => PageCount(CreateGenerator().GeneratePdf(TestResults.Create(barCount: 500, tradeCount: 1000))).Should().BeGreaterThan(10);
+
+    [Fact]
+    public void Charts_AreRenderedWithEmptyOrPartialInputs() // P1-R3, P1-R8
+    {
+        var tiny = TestResults.Create(barCount: 2, tradeCount: 0, indicators: []);
+        var partial = TestResults.Create(barCount: 2, tradeCount: 1, indicators:
+        [
+            new IndicatorSeries("sma-50", "SMA 50", IndicatorPane.Price, [null, null], []),
+            new IndicatorSeries("short", "Too short", IndicatorPane.Price, [1.0], []),
+        ]);
+        var empty = TestResults.Create(barCount: 2) with { Bars = [], Equity = [], Trades = [] };
+
+        foreach (var result in new[] { tiny, partial, empty })
+        {
+            ChartRenderer.Drawdown(result).Should().NotBeEmpty();
+            ChartRenderer.Price(result).Should().NotBeEmpty();
+            ChartRenderer.Equity(result).Should().NotBeEmpty();
+        }
+    }
+
+    [Fact]
+    public void GeneratePdf_ResultWithoutBars_DoesNotThrow() // P1-R8
+        => CreateGenerator().GeneratePdf(TestResults.Create(barCount: 2) with { Bars = [], Equity = [], Trades = [] })
+            .Should().NotBeEmpty();
+
+    [Fact]
     public void AddQuantBacktestReports_RegistersASingletonGenerator() // CONTRACT section 2
     {
         using var provider = new ServiceCollection().AddQuantBacktestReports().BuildServiceProvider();
@@ -66,6 +100,9 @@ public class PdfReportGeneratorTests
         provider.GetRequiredService<IReportGenerator>().Should().BeOfType<PdfReportGenerator>()
             .And.BeSameAs(provider.GetRequiredService<IReportGenerator>());
     }
+
+    private static int PageCount(byte[] pdf)
+        => Regex.Matches(Encoding.Latin1.GetString(pdf), @"/Type\s*/Page(?!s)").Count;
 
     private static IReportGenerator CreateGenerator()
     {

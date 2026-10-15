@@ -18,6 +18,6 @@ internal sealed class PdfReportGenerator(TimeProvider time) : IReportGenerator
         return new BacktestReportDocument(result, time.GetUtcNow()).GeneratePdf();
     }
 
-    public string GenerateTradesCsv(BacktestResult result)
-        => throw new NotSupportedException("The trades CSV comes with PR 7 of docs/parts/PART-1.md.");
+    /// <summary>P1-R7: format of docs/CONTRACT.md section 11.</summary>
+    public string GenerateTradesCsv(BacktestResult result) => TradesCsv.Write(result);
 }
