@@ -46,6 +46,17 @@ Refusals arrive with HTTP 200 as a JSON `Information` message, even when CSV is 
 - A timeout (30 s) or connection failure gives `NetworkError`; a cancellation requested by the caller is propagated
   as an `OperationCanceledException`, not reported as a network error.
 
+### Local cache (SQLite)
+
+- EF Core with SQLite, schema created with `EnsureCreated()` once per process behind a lock; no migrations.
+  Four tables: `PriceBars` (key symbol, timeframe, date), `SeriesMetadata` (origin, last fetch), `ApiUsage`
+  (requests per UTC day) and `CustomStrategies` (definitions stored as JSON).
+- Decimals are stored as text by the SQLite provider, so prices are kept exactly; queries only sort by date and every
+  computation runs in memory.
+- A download is merged by date: new dates are inserted, existing dates are replaced, and no cached bar is ever deleted.
+  The origin of a series becomes `Mixed` as soon as bars of another origin are added; a series is adjusted only if
+  every one of its bars comes from an adjusted source.
+
 ## How it works
 
 ## Tests

@@ -1,10 +1,13 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.FileProviders;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using QuantBacktest.Core.Models;
 using QuantBacktest.Data.AlphaVantage;
 using QuantBacktest.Data.Options;
+using QuantBacktest.Data.Storage;
 using QuantBacktest.Data.Tests.TestSupport;
 
 namespace QuantBacktest.Data.Tests;
@@ -99,6 +102,21 @@ public class DataRegistrationTests
         logs.AllText.Should().NotContain(ApiKey);
     }
 
+    [Fact]
+    public void Database_RelativePath_IsResolvedFromTheContentRootOfTheHost() // P1-D1, P1-D8
+    {
+        var contentRoot = Path.Combine(Path.GetTempPath(), "qb-content-root");
+        var services = new ServiceCollection();
+        services.AddSingleton<IHostEnvironment>(new TestHostEnvironment(contentRoot));
+        services.AddQuantBacktestData(BuildConfiguration(new Dictionary<string, string?>()));
+        using var provider = services.BuildServiceProvider();
+
+        var database = provider.GetRequiredService<SqliteDatabase>();
+
+        database.DatabasePath.Should().Be(Path.GetFullPath(Path.Combine(contentRoot, "App_Data", "quantbacktest.db")));
+        provider.GetRequiredService<PriceCache>().Should().BeSameAs(provider.GetRequiredService<PriceCache>());
+    }
+
     private static ServiceProvider BuildProvider(Dictionary<string, string?> settings)
     {
         var services = new ServiceCollection();
@@ -109,4 +127,15 @@ public class DataRegistrationTests
 
     private static IConfiguration BuildConfiguration(Dictionary<string, string?> settings)
         => new ConfigurationBuilder().AddInMemoryCollection(settings).Build();
+
+    private sealed class TestHostEnvironment(string contentRootPath) : IHostEnvironment
+    {
+        public string EnvironmentName { get; set; } = "Test";
+
+        public string ApplicationName { get; set; } = "QuantBacktest.Data.Tests";
+
+        public string ContentRootPath { get; set; } = contentRootPath;
+
+        public IFileProvider ContentRootFileProvider { get; set; } = new NullFileProvider();
+    }
 }
