@@ -6,8 +6,13 @@ using QuestPDF.Infrastructure;
 
 namespace QuantBacktest.Reports.Pdf;
 
-/// <summary>The QuestPDF layout of the report: A4 portrait, English (P1-R1, P1-R2, P1-R5).</summary>
-internal sealed class BacktestReportDocument(BacktestResult result, DateTimeOffset generatedAt) : IDocument
+/// <summary>The QuestPDF layout of the report: A4 portrait, English (P1-R1 to P1-R5, P1-X1).</summary>
+/// <param name="customRules">The documentation of a no-code strategy, whose rules are printed; null otherwise.</param>
+internal sealed class BacktestReportDocument(
+    BacktestResult result,
+    MonteCarloResult? monteCarlo,
+    StrategyDocumentation? customRules,
+    DateTimeOffset generatedAt) : IDocument
 {
     private const string AccentColor = "#1f6feb";
 
@@ -35,6 +40,11 @@ internal sealed class BacktestReportDocument(BacktestResult result, DateTimeOffs
                 ComposeChartsPage(column);
                 column.Item().PageBreak();
                 ComposeTradeLog(column);
+                if (monteCarlo is not null)
+                {
+                    column.Item().PageBreak();
+                    ComposeMonteCarlo(column, monteCarlo);
+                }
             });
             page.Footer().Row(row =>
             {
@@ -69,6 +79,24 @@ internal sealed class BacktestReportDocument(BacktestResult result, DateTimeOffs
                 table.Cell().PaddingVertical(1).Text(value);
             }
         });
+
+        if (customRules is not null)
+        {
+            // P1-X1: the rules of a no-code strategy.
+            column.Item().Background(Colors.Grey.Lighten4).Padding(5).Column(rules =>
+            {
+                rules.Item().Text(text =>
+                {
+                    text.Span("Entry rule: ").SemiBold();
+                    text.Span(customRules.EntryRule);
+                });
+                rules.Item().Text(text =>
+                {
+                    text.Span("Exit rule: ").SemiBold();
+                    text.Span(customRules.ExitRule);
+                });
+            });
+        }
 
         if (!result.PricesAdjusted)
         {
@@ -110,6 +138,12 @@ internal sealed class BacktestReportDocument(BacktestResult result, DateTimeOffs
         column.Item().Text("Drawdown and trades").FontSize(12).Bold();
         column.Item().Image(ChartRenderer.Drawdown(result)).FitWidth();
         column.Item().Image(ChartRenderer.Price(result)).FitWidth();
+        if (ChartRenderer.Oscillators(result) is { } oscillators)
+        {
+            // P1-X1: Oscillator-pane indicators below the price.
+            column.Item().Image(oscillators).FitWidth();
+        }
+
         column.Item().Text("Triangles: buy (up) and sell (down) at the fill price of each trade.").FontSize(7).FontColor(Colors.Grey.Darken1);
     }
 
@@ -150,6 +184,57 @@ internal sealed class BacktestReportDocument(BacktestResult result, DateTimeOffs
                     table.Cell().Background(background).Padding(2).Text(value).FontSize(7);
                 }
             }
+        });
+    }
+
+    /// <summary>P1-X1: histograms, percentiles, probability of loss, actual values and the MC7 note.</summary>
+    private static void ComposeMonteCarlo(ColumnDescriptor column, MonteCarloResult monteCarlo)
+    {
+        column.Item().Text(ReportContent.MonteCarloTitle).FontSize(12).Bold();
+        column.Item().Text(ReportContent.MonteCarloDrawdownNote).Italic();
+
+        column.Item().Table(table =>
+        {
+            table.ColumnsDefinition(columns =>
+            {
+                columns.ConstantColumn(110);
+                columns.RelativeColumn();
+            });
+            foreach (var (label, value) in ReportContent.MonteCarloSummary(monteCarlo))
+            {
+                table.Cell().PaddingVertical(1).Text(label).SemiBold();
+                table.Cell().PaddingVertical(1).Text(value);
+            }
+        });
+
+        column.Item().Table(table =>
+        {
+            table.ColumnsDefinition(columns =>
+            {
+                columns.RelativeColumn(2);
+                columns.RelativeColumn();
+                columns.RelativeColumn();
+            });
+            table.Header(header =>
+            {
+                HeaderCell(header.Cell(), "Percentile");
+                HeaderCell(header.Cell().AlignRight(), "Final return");
+                HeaderCell(header.Cell().AlignRight(), "Max drawdown");
+            });
+            var index = 0;
+            foreach (var row in ReportContent.MonteCarloPercentiles(monteCarlo))
+            {
+                var background = index++ % 2 == 0 ? Colors.White : Colors.Grey.Lighten4;
+                table.Cell().Background(background).Padding(2).Text(row.Label);
+                table.Cell().Background(background).Padding(2).AlignRight().Text(row.Strategy);
+                table.Cell().Background(background).Padding(2).AlignRight().Text(row.Benchmark);
+            }
+        });
+
+        column.Item().Row(row =>
+        {
+            row.RelativeItem().Image(ChartRenderer.Histogram(monteCarlo.FinalReturnHistogram, "Final return distribution", asLoss: false)).FitWidth();
+            row.RelativeItem().Image(ChartRenderer.Histogram(monteCarlo.MaxDrawdownHistogram, "Max drawdown distribution", asLoss: true)).FitWidth();
         });
     }
 

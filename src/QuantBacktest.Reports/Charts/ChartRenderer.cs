@@ -80,6 +80,65 @@ internal static class ChartRenderer
         return Render(plot);
     }
 
+    /// <summary>P1-X1: the Oscillator-pane indicators with their reference lines (RSI 30 and 70...); null when there is none.</summary>
+    public static byte[]? Oscillators(BacktestResult result)
+    {
+        var oscillators = result.Indicators.Where(indicator => indicator.Pane == IndicatorPane.Oscillator).ToList();
+        if (oscillators.Count == 0)
+        {
+            return null;
+        }
+
+        var plot = NewPlot("Oscillators");
+        var dates = result.Bars.Select(bar => ToDateTime(bar.Date)).ToArray();
+        var index = 0;
+        foreach (var indicator in oscillators)
+        {
+            AddIndicator(plot, dates, indicator, IndicatorColors[index++ % IndicatorColors.Length]);
+        }
+
+        foreach (var level in oscillators.SelectMany(indicator => indicator.ReferenceLines).Where(double.IsFinite).Distinct())
+        {
+            var line = plot.Add.HorizontalLine(level);
+            line.Color = BenchmarkColor;
+            line.LinePattern = LinePattern.Dashed;
+            line.LineWidth = 1;
+        }
+
+        return Render(plot);
+    }
+
+    /// <summary>
+    /// P1-X1: a Monte Carlo histogram, one bar per bin as given. Bins are fractions; drawdowns are shown as losses.
+    /// </summary>
+    public static byte[] Histogram(IReadOnlyList<HistogramBin> bins, string title, bool asLoss)
+    {
+        var plot = new Plot();
+        plot.Title(title);
+        var sign = asLoss ? -1 : 1;
+        var bars = bins.Select(bin => new Bar
+        {
+            Position = sign * (bin.Lower + bin.Upper) / 2 * 100,
+            Value = bin.Count,
+            Size = Math.Max((bin.Upper - bin.Lower) * 100, 1e-6) * 0.95,
+            FillColor = asLoss ? DrawdownColor : StrategyColor,
+            LineWidth = 0,
+        }).ToList();
+        if (bars.Count > 0)
+        {
+            plot.Add.Bars(bars);
+        }
+
+        plot.Axes.Margins(bottom: 0);
+        plot.Axes.Bottom.Label.Text = asLoss ? "Max drawdown (%)" : "Final return (%)";
+        plot.Axes.Left.Label.Text = "Simulations";
+        plot.Axes.Bottom.TickGenerator = new NumericAutomatic
+        {
+            LabelFormatter = value => value.ToString("0.#", ReportFormat.Culture),
+        };
+        return plot.GetImageBytes(Width / 2, Height, ImageFormat.Png);
+    }
+
     /// <summary>Warm-up values are null and are not drawn; values follow the bars one to one.</summary>
     internal static void AddIndicator(Plot plot, DateTime[] dates, IndicatorSeries indicator, Color color)
     {

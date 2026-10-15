@@ -11,6 +11,10 @@ internal static class ReportContent
     public const string Title = "QuantBacktest report";
     public const string UnadjustedWarning = "Prices are not adjusted for splits or dividends.";
     public const string NoTrades = "No trades were executed in this period.";
+    public const string MonteCarloTitle = "Monte Carlo analysis";
+
+    /// <summary>MC7: the trade-level drawdown is not the bar-level one of the metrics table.</summary>
+    public const string MonteCarloDrawdownNote = "Trade-level drawdowns are not comparable with the bar-level maximum drawdown.";
 
     /// <summary>P1-R4: every field of Trade, exit reason included.</summary>
     public static readonly IReadOnlyList<string> TradeColumns =
@@ -85,6 +89,32 @@ internal static class ReportContent
             ExitReasonLabel(trade.ExitReason),
             ReportFormat.Integer(trade.HoldingBars),
         })];
+
+    /// <summary>P1-X1: the percentiles of the final returns and of the drawdowns, as given.</summary>
+    public static IReadOnlyList<MetricRow> MonteCarloPercentiles(MonteCarloResult monteCarlo)
+    {
+        var finalReturn = monteCarlo.FinalReturn;
+        var drawdown = monteCarlo.MaxDrawdown;
+        return
+        [
+            new("P5", ReportFormat.SignedPercent(finalReturn.P5), ReportFormat.Drawdown(drawdown.P5)),
+            new("P25", ReportFormat.SignedPercent(finalReturn.P25), ReportFormat.Drawdown(drawdown.P25)),
+            new("P50 (median)", ReportFormat.SignedPercent(finalReturn.P50), ReportFormat.Drawdown(drawdown.P50)),
+            new("P75", ReportFormat.SignedPercent(finalReturn.P75), ReportFormat.Drawdown(drawdown.P75)),
+            new("P95", ReportFormat.SignedPercent(finalReturn.P95), ReportFormat.Drawdown(drawdown.P95)),
+        ];
+    }
+
+    /// <summary>P1-X1: settings, probability of loss and the values of the actual trade order.</summary>
+    public static IReadOnlyList<(string Label, string Value)> MonteCarloSummary(MonteCarloResult monteCarlo) =>
+    [
+        ("Simulations", ReportFormat.Integer(monteCarlo.Request.Simulations)),
+        ("Seed", monteCarlo.Request.Seed.ToString(ReportFormat.Culture)),
+        ("Trades resampled", ReportFormat.Integer(monteCarlo.TradeCount)),
+        ("Probability of loss", ReportFormat.Percent(monteCarlo.ProbabilityOfLoss)),
+        ("Actual final return", ReportFormat.SignedPercent(monteCarlo.ActualFinalReturn)),
+        ("Actual max drawdown", ReportFormat.Drawdown(monteCarlo.ActualMaxDrawdown)),
+    ];
 
     public static string ExitReasonLabel(ExitReason reason) => reason switch
     {
