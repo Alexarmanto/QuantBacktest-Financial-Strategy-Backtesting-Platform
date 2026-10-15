@@ -105,6 +105,16 @@ Refusals arrive with HTTP 200 as a JSON `Information` message, even when CSV is 
 ` line endings, header always present,
   RFC 4180 quoting if a field ever needed it).
 
+### Docker
+
+- Multi-stage `Dockerfile`: the .NET 10 SDK image restores, builds with `-warnaserror` and runs every test before
+  publishing, so an image only exists for a green solution; the ASP.NET 10 runtime image runs the application as the
+  non-root `app` user, with `fontconfig` and the DejaVu fonts needed by the PDF and its charts.
+- `docker-compose.yml` starts one `web` service on port 8080 in `Production` (no fakes). The SQLite database lives in
+  a named volume mounted on `/data`, the seed files are copied into the image (`/app/seed`), and the API key comes
+  from a local `.env` file (`.env.example` is the committed template, with an empty key). Without a key the
+  application still serves the seed data.
+
 ## How it works
 
 ## Tests
