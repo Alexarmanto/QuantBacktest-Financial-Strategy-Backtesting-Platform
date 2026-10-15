@@ -70,6 +70,12 @@ Refusals arrive with HTTP 200 as a JSON `Information` message, even when CSV is 
 - Concurrency: one lock per symbol and timeframe, and simultaneous calls share the download in progress, so ten
   simultaneous calls send one HTTP request. A caller that cancels stops waiting without cancelling the shared download.
 
+### Custom strategy store
+
+- Each no-code strategy is stored as one JSON document (camelCase, enums as text) in `CustomStrategies`, next to its
+  name for sorting. It is read back member for member identical, rule lists included. The store validates nothing:
+  Part 2 validates the rules and Part 4 calls that validation before saving.
+
 ## How it works
 
 ## Tests

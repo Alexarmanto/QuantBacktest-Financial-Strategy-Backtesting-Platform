@@ -14,7 +14,6 @@ public static class ServiceCollectionExtensions
 {
     /// <summary>
     /// Registers IMarketDataService and ICustomStrategyStore as singletons (docs/CONTRACT.md section 2).
-    /// ICustomStrategyStore comes with PR 4 (docs/parts/PART-1.md section 9).
     /// The signature is part of the contract and must not change.
     /// </summary>
     public static IServiceCollection AddQuantBacktestData(this IServiceCollection services, IConfiguration configuration)
@@ -49,6 +48,7 @@ public static class ServiceCollectionExtensions
         // The service is a singleton holding the typed client: the handler is kept and recycles its connections itself.
         services.TryAddSingleton(TimeProvider.System);
         services.AddSingleton<IMarketDataService, MarketDataService>();
+        services.AddSingleton<ICustomStrategyStore, SqliteCustomStrategyStore>();
 
         return services;
     }
