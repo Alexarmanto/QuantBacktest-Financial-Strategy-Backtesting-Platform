@@ -9,4 +9,8 @@
   <ItemGroup>
     <InternalsVisibleTo Include="QuantBacktest.Reports.Tests" />
   </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="QuestPDF" />
+    <PackageReference Include="ScottPlot" />
+  </ItemGroup>
 </Project>
