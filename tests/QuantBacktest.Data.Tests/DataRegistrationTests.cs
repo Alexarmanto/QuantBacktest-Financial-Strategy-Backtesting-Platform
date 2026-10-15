@@ -4,6 +4,8 @@ using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using QuantBacktest.Core.Abstractions;
+using QuantBacktest.Fakes;
 using QuantBacktest.Core.Models;
 using QuantBacktest.Data.AlphaVantage;
 using QuantBacktest.Data.Options;
@@ -115,6 +117,41 @@ public class DataRegistrationTests
 
         database.DatabasePath.Should().Be(Path.GetFullPath(Path.Combine(contentRoot, "App_Data", "quantbacktest.db")));
         provider.GetRequiredService<PriceCache>().Should().BeSameAs(provider.GetRequiredService<PriceCache>());
+    }
+
+    [Fact]
+    public async Task RealServices_FromDependencyInjection_ServeSeedDataAndStoreStrategies() // CONTRACT section 2, D2, P1-D14
+    {
+        using var temporary = new TemporaryDatabase();
+        var seedDirectory = Path.Combine(temporary.Directory, "seed");
+        Directory.CreateDirectory(seedDirectory);
+        await File.WriteAllTextAsync(Path.Combine(seedDirectory, "MSFT_daily.csv"), "timestamp,open,high,low,close,volume\n2026-01-05,10,11,9,10.5,100\n");
+        var handler = CountingHttpMessageHandler.Returning(string.Empty);
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddSingleton<IHostEnvironment>(new TestHostEnvironment(Path.Combine(temporary.Directory, "content")));
+        services.AddQuantBacktestData(BuildConfiguration(new Dictionary<string, string?>
+        {
+            ["QuantBacktest:DatabasePath"] = temporary.DatabasePath,
+            ["QuantBacktest:SeedDirectory"] = "../seed",
+        }));
+        services.AddHttpClient(AlphaVantageClient.HttpClientName).ConfigurePrimaryHttpMessageHandler(() => handler);
+        await using (var provider = services.BuildServiceProvider())
+        {
+            var marketData = provider.GetRequiredService<IMarketDataService>();
+            var store = provider.GetRequiredService<ICustomStrategyStore>();
+            marketData.Should().BeSameAs(provider.GetRequiredService<IMarketDataService>());
+            store.Should().BeSameAs(provider.GetRequiredService<ICustomStrategyStore>());
+
+            (await marketData.GetSeriesAsync("msft", Timeframe.Daily)).Bars.Should().ContainSingle();
+            (await marketData.GetCachedSymbolsAsync()).Should().Equal("MSFT");
+            (await marketData.GetQualityReportAsync("MSFT", Timeframe.Daily)).Origin.Should().Be(DataOrigin.Seed);
+            (await marketData.GetApiQuotaAsync()).UsedToday.Should().Be(0);
+            await store.SaveAsync(FakeCustomStrategyStore.Example);
+            (await store.GetAllAsync()).Should().ContainSingle();
+        }
+
+        handler.CallCount.Should().Be(0);
     }
 
     private static ServiceProvider BuildProvider(Dictionary<string, string?> settings)
