@@ -5,7 +5,7 @@ Règles **identiques pour les 4 membres**. La CI et la protection de `main` en a
 ## Principes
 
 - Une seule branche longue : `main`. Elle compile et passe les tests **à tout moment**.
-- Tout changement arrive par Pull Request relue par un autre membre.
+- Tout changement arrive par Pull Request avec une CI verte. La relecture par un autre membre est encouragée mais non bloquante (sauf PR `contract/`).
 - Pas de calendrier imposé : on intègre dès qu'une brique fonctionne seule. Le **socle** d'une partie (section 5 de sa notice) est mergé avant ses fonctionnalités avancées (section 6).
 - Chacun ne touche que son périmètre (notice, section 3). La CI le vérifie à partir du nom de branche.
 
@@ -57,9 +57,9 @@ Dans VS Code, le panneau « Source Control » fait la même chose (stage, commit
 
 1. Titre au bon format, template rempli, label de la partie, issue liée si elle existe.
 2. CI verte (`build-and-test` et `pr-rules`) et branche à jour avec `main`.
-3. **1 approbation** d'un autre membre ; **3 approbations** (tous les autres) pour une PR `contract/`.
+3. Aucune approbation requise ; **3 approbations** (tous les autres) pour une PR `contract/`.
 4. Toutes les conversations résolues.
-5. L'**auteur** clique « Squash and merge » après approbation.
+5. L'**auteur** clique « Squash and merge » dès que la CI est verte (après les 3 approbations pour une PR `contract/`).
 6. Relire les PR en attente des autres passe **avant** de commencer une nouvelle tâche.
 
 ### Ce que le relecteur vérifie
@@ -89,7 +89,7 @@ Tant que l'issue n'est pas acceptée, on **ne contourne pas** le contrat.
 
 - Pousser sur `main`, forcer un push, réécrire l'historique publié.
 - Commiter une clé API, `.env`, `*.db`, `bin/`, `obj/`, un PDF généré.
-- Merger sa propre PR sans approbation, ou une PR rouge.
+- Merger une PR rouge, ou une PR `contract/` sans les 3 approbations.
 - Désactiver la CI, un test ou un warning pour « faire passer ».
 
 ## Fin de projet
