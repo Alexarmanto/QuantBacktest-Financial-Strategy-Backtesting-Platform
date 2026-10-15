@@ -83,6 +83,16 @@ Refusals arrive with HTTP 200 as a JSON `Information` message, even when CSV is 
   5 days (daily) or 10 days (weekly), and counts the missing weekdays (daily) or missing weeks (weekly).
   Market holidays count as missing weekdays, as the contract specifies.
 
+### PDF report
+
+- QuestPDF (Community license) lays out an A4 portrait report in English; ScottPlot draws the charts as PNG images.
+  Every number is printed as it comes in `BacktestResult` and `MonteCarloResult`: the report recomputes nothing.
+- Display culture is fixed to `en-US`. Performance figures (returns) are signed percentages (`+12.34 %`), the
+  maximum drawdown is shown as a loss (`-23.45 %`), non-negative figures (volatility, win rate, exposure) and
+  settings (fees, slippage, stops, risk-free rate) are unsigned percentages, amounts use thousands separators and
+  2 decimals, ratios 2 decimals, undefined ratios read `n/a`.
+- The generation date in the footer comes from the injected clock, so tests are reproducible.
+
 ## How it works
 
 ## Tests
