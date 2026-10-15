@@ -76,6 +76,13 @@ Refusals arrive with HTTP 200 as a JSON `Information` message, even when CSV is 
   name for sorting. It is read back member for member identical, rule lists included. The store validates nothing:
   Part 2 validates the rules and Part 4 calls that validation before saving.
 
+### Data quality report
+
+- Computed on the cached series only, never through the API (`NotCached` otherwise). It flags price jumps above
+  25 %, zero volumes, runs of 5 identical closes (one anomaly per run, dated the 5th bar) and calendar gaps above
+  5 days (daily) or 10 days (weekly), and counts the missing weekdays (daily) or missing weeks (weekly).
+  Market holidays count as missing weekdays, as the contract specifies.
+
 ## How it works
 
 ## Tests

@@ -75,11 +75,19 @@ internal sealed partial class MarketDataService(
     public Task<IReadOnlyList<string>> GetCachedSymbolsAsync(CancellationToken cancellationToken = default)
         => cache.GetSymbolsAsync(cancellationToken);
 
-    public Task<DataQualityReport> GetQualityReportAsync(
+    /// <summary>D7, P1-D15: cached data only, never the API.</summary>
+    public async Task<DataQualityReport> GetQualityReportAsync(
         string symbol,
         Timeframe timeframe,
         CancellationToken cancellationToken = default)
-        => throw new NotSupportedException("The data quality report comes with PR 5 of docs/parts/PART-1.md.");
+    {
+        var normalized = Normalize(symbol);
+        var cached = await cache.GetAsync(normalized, timeframe, cancellationToken)
+            ?? throw new MarketDataException(
+                MarketDataErrorKind.NotCached,
+                $"No cached data for {normalized} ({timeframe}). Load the series first.");
+        return DataQualityAnalyzer.Analyze(cached);
+    }
 
     /// <summary>D8: requests sent today (UTC), the configured limit and the next UTC midnight.</summary>
     public async Task<ApiQuotaStatus> GetApiQuotaAsync(CancellationToken cancellationToken = default)
