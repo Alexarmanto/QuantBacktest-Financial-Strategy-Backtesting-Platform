@@ -106,4 +106,42 @@ public class ReportContentTests
 
         ReportContent.Footer(generatedAt).Should().Be("Generated on 2026-10-15 23:30 UTC by QuantBacktest — Market data: Alpha Vantage");
     }
+
+    [Fact]
+    public void Trades_ShowEveryFieldOfEveryTrade() // P1-R4
+    {
+        var result = TestResults.Create(tradeCount: 0) with
+        {
+            Trades =
+            [
+                new(new DateOnly(2026, 1, 5), 1234.5m, new DateOnly(2026, 1, 9), 1300.25m, 7.123456m, 18.53m, 449.97m, 0.0517, ExitReason.TrailingStop, 4),
+            ],
+        };
+
+        var rows = ReportContent.Trades(result);
+
+        ReportContent.TradeColumns.Should().HaveCount(11);
+        rows.Should().ContainSingle().Which.Should().Equal(
+            "1", "2026-01-05", "1,234.50", "2026-01-09", "1,300.25", "7.1235", "18.53", "449.97", "+5.17 %", "Trailing stop", "4");
+    }
+
+    [Fact]
+    public void Trades_KeepTheOrderAndTheCountOfTheResult() // P1-R4: no truncation
+    {
+        var result = TestResults.Create(barCount: 500, tradeCount: 1000);
+
+        var rows = ReportContent.Trades(result);
+
+        rows.Should().HaveCount(1000);
+        rows.Select(row => row[1]).Should().Equal(result.Trades.Select(trade => ReportFormat.Date(trade.EntryDate)));
+    }
+
+    [Theory] // P1-R4: the exit reason is printed
+    [InlineData(ExitReason.Signal, "Signal")]
+    [InlineData(ExitReason.StopLoss, "Stop-loss")]
+    [InlineData(ExitReason.TakeProfit, "Take-profit")]
+    [InlineData(ExitReason.TrailingStop, "Trailing stop")]
+    [InlineData(ExitReason.EndOfData, "End of data")]
+    public void ExitReasonLabel_IsReadable(ExitReason reason, string expected)
+        => ReportContent.ExitReasonLabel(reason).Should().Be(expected);
 }

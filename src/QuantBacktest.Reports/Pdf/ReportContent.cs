@@ -10,6 +10,11 @@ internal static class ReportContent
 {
     public const string Title = "QuantBacktest report";
     public const string UnadjustedWarning = "Prices are not adjusted for splits or dividends.";
+    public const string NoTrades = "No trades were executed in this period.";
+
+    /// <summary>P1-R4: every field of Trade, exit reason included.</summary>
+    public static readonly IReadOnlyList<string> TradeColumns =
+        ["#", "Entry date", "Entry price", "Exit date", "Exit price", "Quantity", "Fees", "Net profit", "Return", "Exit reason", "Bars held"];
 
     /// <summary>P1-R5, with the date of the injected clock.</summary>
     public static string Footer(DateTimeOffset generatedAt)
@@ -63,6 +68,33 @@ internal static class ReportContent
             new("Exposure", ReportFormat.Percent(s.Exposure), ReportFormat.Percent(b.Exposure)),
         ];
     }
+
+    /// <summary>P1-R4: one row per trade, in the order of the result, values as they are.</summary>
+    public static IReadOnlyList<string[]> Trades(BacktestResult result)
+        => [.. result.Trades.Select((trade, index) => new[]
+        {
+            ReportFormat.Integer(index + 1),
+            ReportFormat.Date(trade.EntryDate),
+            ReportFormat.Price(trade.EntryPrice),
+            ReportFormat.Date(trade.ExitDate),
+            ReportFormat.Price(trade.ExitPrice),
+            ReportFormat.Quantity(trade.Quantity),
+            ReportFormat.Money(trade.Fees),
+            ReportFormat.Money(trade.NetProfit),
+            ReportFormat.SignedPercent(trade.ReturnFraction),
+            ExitReasonLabel(trade.ExitReason),
+            ReportFormat.Integer(trade.HoldingBars),
+        })];
+
+    public static string ExitReasonLabel(ExitReason reason) => reason switch
+    {
+        ExitReason.Signal => "Signal",
+        ExitReason.StopLoss => "Stop-loss",
+        ExitReason.TakeProfit => "Take-profit",
+        ExitReason.TrailingStop => "Trailing stop",
+        ExitReason.EndOfData => "End of data",
+        _ => reason.ToString(),
+    };
 
     private static string Parameters(IReadOnlyDictionary<string, double> parameters)
         => parameters.Count == 0

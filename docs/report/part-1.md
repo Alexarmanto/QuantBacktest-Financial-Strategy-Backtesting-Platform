@@ -92,6 +92,12 @@ Refusals arrive with HTTP 200 as a JSON `Information` message, even when CSV is 
   settings (fees, slippage, stops, risk-free rate) are unsigned percentages, amounts use thousands separators and
   2 decimals, ratios 2 decimals, undefined ratios read `n/a`.
 - The generation date in the footer comes from the injected clock, so tests are reproducible.
+- Page 1: settings, the "not adjusted" warning when needed, the 13 metrics against buy & hold and the equity curve.
+  Page 2: the strategy drawdown, and the closes with the price indicators and buy (up) and sell (down) triangles at
+  the fill prices. Then the trade log: every field of every trade, the header repeated on each page.
+- The trades CSV follows the contract format exactly (invariant culture, `
+` line endings, header always present,
+  RFC 4180 quoting if a field ever needed it).
 
 ## How it works
 
