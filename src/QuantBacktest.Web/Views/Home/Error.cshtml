@@ -1,0 +1,10 @@
+@model ErrorViewModel
+@{
+    ViewData["Title"] = "Error";
+}
+<div class="qb-panel">
+    <h1 class="h3">Something went wrong</h1>
+    <p class="text-body-secondary mb-2">An unexpected error occurred while processing your request. It has been logged.</p>
+    <p class="small mb-4">Request ID: <code>@Model.RequestId</code></p>
+    <a class="btn btn-primary" asp-controller="Backtest" asp-action="Index">Back to Backtest</a>
+</div>

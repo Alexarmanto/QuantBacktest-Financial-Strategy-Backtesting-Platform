@@ -4,16 +4,21 @@ using QuantBacktest.Engine;
 using QuantBacktest.Fakes;
 using QuantBacktest.Reports;
 using QuantBacktest.Strategies;
+using QuantBacktest.Web.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
 var configuration = builder.Configuration;
 var services = builder.Services;
 
 services.AddControllersWithViews();
+services.AddRequestLocalization(RequestCultureSetup.Configure);
 
 // Composition root (docs/CONTRACT.md section 2). Each part is real or fake on its own, so a part can be
 // plugged in as soon as it is merged. Keys: QuantBacktest:UseFakes:{Data|Reports|Strategies|Analytics|Engine}.
-bool UseFake(string part) => configuration.GetValue<bool>($"QuantBacktest:UseFakes:{part}");
+// The same object drives the "Demo data" banner of the layout (P4-U13).
+var fakeServices = new FakeServicesStatus(configuration);
+services.AddSingleton(fakeServices);
+bool UseFake(string part) => fakeServices.IsFake(part);
 
 if (UseFake("Data"))
 {
@@ -67,11 +72,13 @@ if (!app.Environment.IsDevelopment())
     app.UseExceptionHandler("/Home/Error");
 }
 
+// In Development the developer exception page stays active (P4-U12: no stack trace outside Development).
+app.UseRequestLocalization();
 app.UseStaticFiles();
 app.UseRouting();
 
-// TODO(part4): replace this placeholder with the real controllers and views (docs/parts/PART-4.md).
-app.MapGet("/", () => "QuantBacktest is running. Part 4 replaces this page.");
+// GET / is HomeController.Index, which redirects to /Backtest.
+app.MapControllerRoute("default", "{controller=Home}/{action=Index}/{id?}");
 
 app.Run();
 
