@@ -1,0 +1,76 @@
+@inject FakeServicesStatus FakeServices
+@{
+    // Navigation of P4-U13. A page that does not exist yet stays visible but disabled; its PR enables it.
+    var navigation = new (string Label, string Controller, bool Enabled)[]
+    {
+        ("Backtest", "Backtest", true),
+        ("Compare", "Compare", false),
+        ("Optimize", "Optimize", false),
+        ("Validate", "Validate", false),
+        ("Strategies", "Strategies", false),
+        ("Data", "Data", false),
+    };
+    var currentController = ViewContext.RouteData.Values["controller"] as string;
+}
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>@ViewData["Title"] · QuantBacktest</title>
+    <link rel="stylesheet" href="~/lib/bootstrap/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+</head>
+<body class="d-flex flex-column min-vh-100">
+    <header>
+        <nav class="navbar navbar-expand-lg qb-navbar">
+            <div class="container-xl">
+                <a class="navbar-brand qb-brand" asp-controller="Backtest" asp-action="Index">Quant<span>Backtest</span></a>
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#main-nav"
+                        aria-controls="main-nav" aria-expanded="false" aria-label="Toggle navigation">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+                <div class="collapse navbar-collapse" id="main-nav">
+                    <ul class="navbar-nav me-auto">
+                        @foreach (var item in navigation)
+                        {
+                            <li class="nav-item">
+                                @if (!item.Enabled)
+                                {
+                                    <a class="nav-link disabled" aria-disabled="true">@item.Label</a>
+                                }
+                                else if (item.Controller == currentController)
+                                {
+                                    <a class="nav-link active" aria-current="page" asp-controller="@item.Controller" asp-action="Index">@item.Label</a>
+                                }
+                                else
+                                {
+                                    <a class="nav-link" asp-controller="@item.Controller" asp-action="Index">@item.Label</a>
+                                }
+                            </li>
+                        }
+                    </ul>
+                    @await Component.InvokeAsync("ApiQuota")
+                </div>
+            </div>
+        </nav>
+        @if (FakeServices.IsAnyActive)
+        {
+            <div class="qb-demo-banner text-bg-warning" role="status">
+                <div class="container-xl">@FakeServices.BannerText</div>
+            </div>
+        }
+    </header>
+
+    <main class="container-xl flex-grow-1 py-4">
+        @RenderBody()
+    </main>
+
+    <footer class="qb-footer">
+        <div class="container-xl">Market data: Alpha Vantage</div>
+    </footer>
+
+    <script src="~/lib/bootstrap/js/bootstrap.bundle.min.js"></script>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>
