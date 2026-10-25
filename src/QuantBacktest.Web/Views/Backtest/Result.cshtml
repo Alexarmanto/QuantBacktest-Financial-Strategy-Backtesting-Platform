@@ -1,0 +1,73 @@
+@model BacktestResultViewModel
+@{
+    ViewData["Title"] = $"{Model.Symbol} · {Model.StrategyName}";
+}
+
+<div class="d-flex flex-wrap align-items-start justify-content-between gap-2 mb-3">
+    <div>
+        <h1 class="h3 mb-1">@Model.Symbol · @Model.StrategyName</h1>
+        <p class="text-body-secondary mb-0">@Model.Timeframe · @Model.Period</p>
+    </div>
+    <button type="button" class="btn btn-outline-primary" data-copy-link="@Model.Permalink">Copy link</button>
+</div>
+
+<div class="row g-3">
+    <div class="col-12 col-lg-6">
+        <section class="qb-panel">
+            <h2 class="h5">Main metrics</h2>
+            <div class="table-responsive">
+                <table class="table table-sm mb-0">
+                    <thead>
+                        <tr>
+                            <th scope="col">Metric</th>
+                            <th scope="col" class="num">Strategy</th>
+                            <th scope="col" class="num">Buy &amp; hold</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var row in Model.Metrics)
+                        {
+                            <tr>
+                                <th scope="row" class="fw-normal">@row.Label</th>
+                                <td class="num">@row.Strategy</td>
+                                <td class="num">@row.BuyAndHold</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </div>
+
+    <div class="col-12 col-lg-6">
+        <section class="qb-panel">
+            <h2 class="h5">Settings</h2>
+            <dl class="row mb-0">
+                @foreach (var row in Model.Execution)
+                {
+                    <dt class="col-6 fw-normal text-body-secondary">@row.Label</dt>
+                    <dd class="col-6 num mb-1">@row.Value</dd>
+                }
+            </dl>
+            <h3 class="h6 mt-3">Strategy parameters</h3>
+            @if (Model.Parameters.Count == 0)
+            {
+                <p class="text-body-secondary mb-0">This strategy has no parameters.</p>
+            }
+            else
+            {
+                <dl class="row mb-0">
+                    @foreach (var row in Model.Parameters)
+                    {
+                        <dt class="col-6 fw-normal text-body-secondary">@row.Label</dt>
+                        <dd class="col-6 num mb-1">@row.Value</dd>
+                    }
+                </dl>
+            }
+        </section>
+    </div>
+</div>
+
+@section Scripts {
+    <script type="module" src="~/js/backtest-form.js" asp-append-version="true"></script>
+}
