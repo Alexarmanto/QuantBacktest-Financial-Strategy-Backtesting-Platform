@@ -71,7 +71,7 @@ public sealed class BacktestController(
         {
             var result = await backtests.RunAsync(effective.ToBacktestRequest(), cancellationToken);
             var permalink = $"{Request.Scheme}://{Request.Host}{ResultPath}?{effective.ToQueryString()}";
-            return View(BacktestResultViewModel.Create(result, strategy, permalink));
+            return View(BacktestResultViewModel.Create(result, strategy, effective, permalink, Request.PathBase.Value ?? string.Empty));
         }
         catch (BacktestValidationException exception)
         {

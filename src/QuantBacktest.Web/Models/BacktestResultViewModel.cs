@@ -5,52 +5,65 @@ using QuantBacktest.Web.Infrastructure;
 
 namespace QuantBacktest.Web.Models;
 
-internal sealed record MetricRow(string Label, string Strategy, string BuyAndHold);
-
-internal sealed record SettingRow(string Label, string Value);
+/// <summary>One line of the Strategy vs Buy &amp; hold table; the tone classes are empty on uncoloured lines.</summary>
+internal sealed record MetricRow(
+    string Label,
+    string Strategy,
+    string BuyAndHold,
+    string StrategyTone = ValueTone.Neutral,
+    string BuyAndHoldTone = ValueTone.Neutral);
 
 /// <summary>
-/// Minimal result page (PR 2): main metrics, settings and permalink. Every value is already computed by
-/// IBacktestService; this model only formats (DisplayFormat, P4-U14). The full page comes with P4-U3 to P4-U7.
+/// Result page (P4-U3, P4-U4, P4-U6, P4-U7). Every value is already computed by IBacktestService: this model only
+/// formats (DisplayFormat, P4-U14) and picks a colour from the sign of a value. The view only prints it.
 /// </summary>
 internal sealed record BacktestResultViewModel(
-    string Symbol,
-    string StrategyName,
-    string Timeframe,
-    string Period,
+    ResultHeaderViewModel Header,
     IReadOnlyList<MetricRow> Metrics,
-    IReadOnlyList<SettingRow> Execution,
-    IReadOnlyList<SettingRow> Parameters,
-    string Permalink)
+    ResultTradesViewModel Trades,
+    ResultActionsViewModel Actions)
 {
     public const string Disabled = "Off";
 
-    public static BacktestResultViewModel Create(BacktestResult result, IStrategy strategy, string permalink)
+    /// <param name="query">The effective (canonical) query of this result: it builds every action URL.</param>
+    /// <param name="permalink">Absolute URL of this result, copied by "Copy link".</param>
+    /// <param name="pathBase">Request.PathBase, prefixed to the action URLs.</param>
+    public static BacktestResultViewModel Create(
+        BacktestResult result,
+        IStrategy strategy,
+        BacktestQuery query,
+        string permalink,
+        string pathBase)
     {
         ArgumentNullException.ThrowIfNull(result);
         ArgumentNullException.ThrowIfNull(strategy);
+        ArgumentNullException.ThrowIfNull(query);
         ArgumentNullException.ThrowIfNull(permalink);
 
+        return new BacktestResultViewModel(
+            CreateHeader(result, strategy, permalink),
+            CreateMetricRows(result.Metrics, result.BenchmarkMetrics, result.Request.Timeframe),
+            ResultTradesViewModel.Create(result.Trades),
+            ResultActionsViewModel.Create(query, strategy, pathBase));
+    }
+
+    /// <summary>M4: the label of AverageReturnPerPeriod follows the timeframe.</summary>
+    public static string AverageReturnLabel(Timeframe timeframe) => timeframe switch
+    {
+        Timeframe.Daily => "Average daily return",
+        Timeframe.Weekly => "Average weekly return",
+        _ => throw new ArgumentOutOfRangeException(nameof(timeframe), timeframe, "Unknown timeframe."),
+    };
+
+    private static ResultHeaderViewModel CreateHeader(BacktestResult result, IStrategy strategy, string permalink)
+    {
         var request = result.Request;
         var execution = request.Execution;
-        var strategyMetrics = result.Metrics;
-        var benchmark = result.BenchmarkMetrics;
 
         // Actual period: first and last bar of the tested period (BacktestResult.Bars).
         var period = result.Bars.Count == 0
             ? DisplayFormat.NotAvailable
             : $"{FormatDate(result.Bars[0].Date)} to {FormatDate(result.Bars[^1].Date)}";
-
-        var metrics = new List<MetricRow>
-        {
-            new("Final equity", DisplayFormat.Money(strategyMetrics.FinalEquity), DisplayFormat.Money(benchmark.FinalEquity)),
-            new("Cumulative return", DisplayFormat.Percent(strategyMetrics.CumulativeReturn), DisplayFormat.Percent(benchmark.CumulativeReturn)),
-            new("Annualized return", DisplayFormat.Percent(strategyMetrics.AnnualizedReturn), DisplayFormat.Percent(benchmark.AnnualizedReturn)),
-            new("Sharpe ratio", DisplayFormat.Ratio(strategyMetrics.SharpeRatio), DisplayFormat.Ratio(benchmark.SharpeRatio)),
-            new("Max drawdown", DisplayFormat.Percent(strategyMetrics.MaxDrawdown), DisplayFormat.Percent(benchmark.MaxDrawdown)),
-            new("Trades", FormatCount(strategyMetrics.TradeCount), FormatCount(benchmark.TradeCount)),
-            new("Win rate", DisplayFormat.Percent(strategyMetrics.WinRate), DisplayFormat.Percent(benchmark.WinRate)),
-        };
 
         var settings = new List<SettingRow>
         {
@@ -70,16 +83,38 @@ internal sealed record BacktestResultViewModel(
                 BacktestQuery.FormatNumber(request.Parameters.TryGetValue(definition.Key, out var value) ? value : definition.DefaultValue)))
             .ToList();
 
-        return new BacktestResultViewModel(
+        return new ResultHeaderViewModel(
             request.Symbol,
             result.StrategyName,
             request.Timeframe.ToString(),
             period,
-            metrics,
             settings,
             parameters,
-            permalink);
+            permalink,
+            result.PricesAdjusted ? null : ResultHeaderViewModel.UnadjustedPricesWarning,
+            strategy.Documentation);
     }
+
+    /// <summary>The 13 fields of PerformanceMetrics, in the order of the record (M1 to M12). Only returns are coloured.</summary>
+    private static List<MetricRow> CreateMetricRows(PerformanceMetrics strategy, PerformanceMetrics benchmark, Timeframe timeframe) =>
+    [
+        new("Final equity", DisplayFormat.Money(strategy.FinalEquity), DisplayFormat.Money(benchmark.FinalEquity)),
+        Return("Cumulative return", strategy.CumulativeReturn, benchmark.CumulativeReturn),
+        Return("Annualized return", strategy.AnnualizedReturn, benchmark.AnnualizedReturn),
+        Return(AverageReturnLabel(timeframe), strategy.AverageReturnPerPeriod, benchmark.AverageReturnPerPeriod),
+        new("Annualized volatility", DisplayFormat.Percent(strategy.AnnualizedVolatility), DisplayFormat.Percent(benchmark.AnnualizedVolatility)),
+        new("Sharpe ratio", DisplayFormat.Ratio(strategy.SharpeRatio), DisplayFormat.Ratio(benchmark.SharpeRatio)),
+        new("Sortino ratio", DisplayFormat.Ratio(strategy.SortinoRatio), DisplayFormat.Ratio(benchmark.SortinoRatio)),
+        new("Calmar ratio", DisplayFormat.Ratio(strategy.CalmarRatio), DisplayFormat.Ratio(benchmark.CalmarRatio)),
+        new("Max drawdown", DisplayFormat.Percent(strategy.MaxDrawdown), DisplayFormat.Percent(benchmark.MaxDrawdown)),
+        new("Trades", FormatCount(strategy.TradeCount), FormatCount(benchmark.TradeCount)),
+        new("Win rate", DisplayFormat.Percent(strategy.WinRate), DisplayFormat.Percent(benchmark.WinRate)),
+        new("Profit factor", DisplayFormat.Ratio(strategy.ProfitFactor), DisplayFormat.Ratio(benchmark.ProfitFactor)),
+        new("Exposure", DisplayFormat.Percent(strategy.Exposure), DisplayFormat.Percent(benchmark.Exposure)),
+    ];
+
+    private static MetricRow Return(string label, double strategy, double benchmark) =>
+        new(label, DisplayFormat.Percent(strategy), DisplayFormat.Percent(benchmark), ValueTone.Of(strategy), ValueTone.Of(benchmark));
 
     private static string FormatDate(DateOnly date) => date.ToString(BacktestQuery.DateFormat, CultureInfo.InvariantCulture);
 

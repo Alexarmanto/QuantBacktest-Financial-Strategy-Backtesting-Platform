@@ -319,20 +319,23 @@ public class BacktestControllerTests
         await act.Should().ThrowAsync<InvalidOperationException>();
     }
 
-    // ---- Minimal result ----
+    // ---- Result page ----
 
-    [Fact] // PART-4 section 7: valid → result with the metrics, settings, parameters and the permalink
+    [Fact] // PART-4 section 7, P4-U3, P4-U4, P4-U7: valid → result with the metrics, settings, permalink and actions
     public async Task Result_Valid_ShowsTheMetrics_AndThePermalink()
     {
-        var model = (await ResultAsync(Canonical)).Should().BeOfType<ViewResult>()
-            .Which.Model.Should().BeOfType<BacktestResultViewModel>().Subject;
+        var view = (await ResultAsync(Canonical)).Should().BeOfType<ViewResult>().Subject;
+        view.ViewName.Should().BeNull();
+        var model = view.Model.Should().BeOfType<BacktestResultViewModel>().Subject;
 
-        model.Symbol.Should().Be("AAPL");
-        model.Metrics.Select(m => m.Label).Should().Equal(
-            "Final equity", "Cumulative return", "Annualized return", "Sharpe ratio", "Max drawdown", "Trades", "Win rate");
+        model.Header.Symbol.Should().Be("AAPL");
+        model.Metrics.Should().HaveCount(13);
         model.Metrics[0].Strategy.Should().StartWith("$");
-        model.Parameters.Should().Equal(new SettingRow("Lookback (bars)", "10"), new SettingRow("Threshold (fraction)", "0.02"));
-        model.Permalink.Should().Be("http://localhost:5080" + ResultPath + "?" + Canonical);
+        model.Metrics[3].Label.Should().Be("Average daily return");
+        model.Header.Parameters.Should().Equal(new SettingRow("Lookback (bars)", "10"), new SettingRow("Threshold (fraction)", "0.02"));
+        model.Header.Permalink.Should().Be("http://localhost:5080" + ResultPath + "?" + Canonical);
+        model.Actions.EditSettingsUrl.Should().Be("/Backtest?" + Canonical);
+        model.Actions.OptimizeUrl.Should().Be("/Optimize?" + Canonical);
     }
 
     private sealed class FailingCachedSymbolsMarketData : IMarketDataService

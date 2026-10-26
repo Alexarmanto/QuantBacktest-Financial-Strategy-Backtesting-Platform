@@ -12,6 +12,8 @@ internal static class DisplayFormat
 
     private const string TwoDecimals = "#,##0.00";
 
+    private const string UpToFourDecimals = "#,##0.####";
+
     /// <summary>US dollar amount: $10,371.39 and -$10.50.</summary>
     public static string Money(decimal amount)
     {
@@ -25,6 +27,15 @@ internal static class DisplayFormat
 
     /// <summary>Ratio with 2 decimals; an undefined ratio (null, docs/CONTRACT.md section 3) is "n/a".</summary>
     public static string Ratio(double? value) => value is { } defined ? Number(defined) : NotAvailable;
+
+    /// <summary>Share quantity: thousands grouped, at most 4 decimals, trailing zeros dropped (1,234.5, 12.3457, 10).</summary>
+    public static string Quantity(decimal quantity)
+    {
+        var rounded = Math.Round(quantity, 4, MidpointRounding.AwayFromZero);
+
+        // A quantity rounded to zero must not print as "-0".
+        return (rounded == 0 ? 0m : rounded).ToString(UpToFourDecimals, CultureInfo.InvariantCulture);
+    }
 
     private static string Number(double value)
     {

@@ -1,20 +1,59 @@
 @model BacktestResultViewModel
 @{
-    ViewData["Title"] = $"{Model.Symbol} · {Model.StrategyName}";
+    var header = Model.Header;
+    var actions = Model.Actions;
+    ViewData["Title"] = $"{header.Symbol} · {header.StrategyName}";
+
+    // Prints one sortable cell; every text and sort key comes formatted from the model.
+    void Cell(SortableCell cell, string? cssClass = null)
+    {
+        <td class="@cssClass" data-sort-value="@cell.SortValue">@cell.Text</td>
+    }
 }
 
 <div class="d-flex flex-wrap align-items-start justify-content-between gap-2 mb-3">
-    <div>
-        <h1 class="h3 mb-1">@Model.Symbol · @Model.StrategyName</h1>
-        <p class="text-body-secondary mb-0">@Model.Timeframe · @Model.Period</p>
+    <div class="qb-min-0">
+        <h1 class="h3 mb-1 text-break">@header.Symbol · @header.StrategyName</h1>
+        <p class="text-body-secondary mb-0">@header.Timeframe · @header.Period</p>
     </div>
-    <button type="button" class="btn btn-outline-primary" data-copy-link="@Model.Permalink">Copy link</button>
+    <button type="button" class="btn btn-outline-primary" data-copy-link="@header.Permalink"
+            aria-controls="permalink-fallback">Copy link</button>
 </div>
 
+@* Shown by backtest-form.js when the clipboard is unavailable (non-secure context, e.g. Docker accessed by IP). *@
+<div class="mb-3" id="permalink-fallback" data-copy-link-fallback hidden>
+    <label class="form-label small text-body-secondary" for="permalink-input">Copy this link:</label>
+    <input class="form-control form-control-sm" id="permalink-input" type="text" readonly value="@header.Permalink" />
+</div>
+
+@if (header.UnadjustedWarning is not null)
+{
+    <div class="alert alert-warning" role="alert">@header.UnadjustedWarning</div>
+}
+
+<nav class="d-flex flex-wrap gap-2 mb-4" aria-label="Result actions">
+    <a class="btn btn-primary" href="@actions.EditSettingsUrl">Edit settings</a>
+    <span class="d-inline-block" title="@ResultActionsViewModel.ComingSoon">
+        <a class="btn btn-outline-secondary disabled" href="@actions.PdfUrl" aria-disabled="true" tabindex="-1">Download PDF</a>
+    </span>
+    <span class="d-inline-block" title="@ResultActionsViewModel.ComingSoon">
+        <a class="btn btn-outline-secondary disabled" href="@actions.TradesCsvUrl" aria-disabled="true" tabindex="-1">Download trades CSV</a>
+    </span>
+    <span class="d-inline-block" title="@ResultActionsViewModel.ComingSoon">
+        <a class="btn btn-outline-secondary disabled" href="@actions.MonteCarloUrl" aria-disabled="true" tabindex="-1">Run Monte Carlo</a>
+    </span>
+    @if (actions.OptimizeUrl is not null)
+    {
+        <span class="d-inline-block" title="@ResultActionsViewModel.ComingSoon">
+            <a class="btn btn-outline-secondary disabled" href="@actions.OptimizeUrl" aria-disabled="true" tabindex="-1">Optimize this strategy</a>
+        </span>
+    }
+</nav>
+
 <div class="row g-3">
-    <div class="col-12 col-lg-6">
-        <section class="qb-panel">
-            <h2 class="h5">Main metrics</h2>
+    <div class="col-12 col-lg-7">
+        <section class="qb-panel h-100">
+            <h2 class="h5">Performance</h2>
             <div class="table-responsive">
                 <table class="table table-sm mb-0">
                     <thead>
@@ -29,8 +68,8 @@
                         {
                             <tr>
                                 <th scope="row" class="fw-normal">@row.Label</th>
-                                <td class="num">@row.Strategy</td>
-                                <td class="num">@row.BuyAndHold</td>
+                                <td class="num @row.StrategyTone">@row.Strategy</td>
+                                <td class="num @row.BuyAndHoldTone">@row.BuyAndHold</td>
                             </tr>
                         }
                     </tbody>
@@ -39,25 +78,25 @@
         </section>
     </div>
 
-    <div class="col-12 col-lg-6">
-        <section class="qb-panel">
+    <div class="col-12 col-lg-5">
+        <section class="qb-panel h-100">
             <h2 class="h5">Settings</h2>
             <dl class="row mb-0">
-                @foreach (var row in Model.Execution)
+                @foreach (var row in header.Execution)
                 {
                     <dt class="col-6 fw-normal text-body-secondary">@row.Label</dt>
                     <dd class="col-6 num mb-1">@row.Value</dd>
                 }
             </dl>
             <h3 class="h6 mt-3">Strategy parameters</h3>
-            @if (Model.Parameters.Count == 0)
+            @if (header.Parameters.Count == 0)
             {
                 <p class="text-body-secondary mb-0">This strategy has no parameters.</p>
             }
             else
             {
                 <dl class="row mb-0">
-                    @foreach (var row in Model.Parameters)
+                    @foreach (var row in header.Parameters)
                     {
                         <dt class="col-6 fw-normal text-body-secondary">@row.Label</dt>
                         <dd class="col-6 num mb-1">@row.Value</dd>
@@ -66,8 +105,81 @@
             }
         </section>
     </div>
+
+    <div class="col-12">
+        <section class="qb-panel">
+            <h2 class="h5 mb-0">
+                <button class="btn btn-link p-0 text-decoration-none qb-collapse-toggle" type="button"
+                        data-bs-toggle="collapse" data-bs-target="#strategy-doc"
+                        aria-expanded="false" aria-controls="strategy-doc">
+                    About this strategy
+                </button>
+            </h2>
+            <div class="collapse" id="strategy-doc">
+                <dl class="mt-3 mb-0">
+                    <dt>Idea</dt>
+                    <dd>@header.Documentation.Idea</dd>
+                    <dt>Entry rule</dt>
+                    <dd>@header.Documentation.EntryRule</dd>
+                    <dt>Exit rule</dt>
+                    <dd>@header.Documentation.ExitRule</dd>
+                    <dt>Risks</dt>
+                    <dd class="mb-0">@header.Documentation.Risks</dd>
+                </dl>
+            </div>
+        </section>
+    </div>
+
+    <div class="col-12">
+        <section class="qb-panel">
+            <h2 class="h5">Trades</h2>
+            @if (Model.Trades.IsEmpty)
+            {
+                <p class="text-body-secondary mb-0">@ResultTradesViewModel.EmptyMessage</p>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover mb-0 qb-trades" data-sortable>
+                        <thead>
+                            <tr>
+                                @foreach (var column in Model.Trades.Columns)
+                                {
+                                    <th scope="col" class="@column.CssClass">
+                                        <button type="button" class="qb-sort" data-sort-type="@column.SortType">@column.Label</button>
+                                    </th>
+                                }
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var row in Model.Trades.Rows)
+                            {
+                                <tr class="@row.RowClass">
+                                    @{
+                                        Cell(row.EntryDate);
+                                        Cell(row.EntryPrice, ResultTradesViewModel.NumberCell);
+                                        Cell(row.ExitDate);
+                                        Cell(row.ExitPrice, ResultTradesViewModel.NumberCell);
+                                        Cell(row.Quantity, ResultTradesViewModel.NumberCell);
+                                        Cell(row.Fees, ResultTradesViewModel.NumberCell);
+                                        Cell(row.NetProfit, ResultTradesViewModel.NumberCell);
+                                        Cell(row.Return, ResultTradesViewModel.NumberCell);
+                                    }
+                                    <td data-sort-value="@row.ExitReason.SortValue">
+                                        <span class="badge @row.ExitReasonBadgeClass">@row.ExitReason.Text</span>
+                                    </td>
+                                    @{ Cell(row.HoldingBars, ResultTradesViewModel.NumberCell); }
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </section>
+    </div>
 </div>
 
 @section Scripts {
     <script type="module" src="~/js/backtest-form.js" asp-append-version="true"></script>
+    <script type="module" src="~/js/table-sort.js" asp-append-version="true"></script>
 }
