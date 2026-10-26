@@ -1,4 +1,4 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection;
 using QuantBacktest.Core.Abstractions;
 
 namespace QuantBacktest.Engine;
@@ -12,6 +12,7 @@ public static class ServiceCollectionExtensions
     {
         services.AddSingleton<IBacktestEngine, BacktestEngine>();
         services.AddSingleton<IBacktestService, BacktestService>();
+        services.AddSingleton<IParameterSweepService, ParameterSweepService>();
         return services;
     }
 }
