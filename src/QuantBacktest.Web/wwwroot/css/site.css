@@ -74,6 +74,74 @@
     text-transform: uppercase;
 }
 
+/* Result page */
+.qb-min-0 {
+    min-width: 0;
+}
+
+.qb-collapse-toggle {
+    color: var(--bs-emphasis-color);
+    font-size: inherit;
+    font-weight: inherit;
+}
+
+.qb-collapse-toggle::after {
+    content: " \25B8";
+    color: var(--bs-secondary-color);
+}
+
+.qb-collapse-toggle[aria-expanded="true"]::after {
+    content: " \25BE";
+}
+
+/* Trade rows: a faint gain / loss tint, the text keeps its normal contrast. */
+.qb-trades .qb-row-gain > * {
+    --bs-table-bg-state: rgba(47, 191, 113, 0.10);
+}
+
+.qb-trades .qb-row-loss > * {
+    --bs-table-bg-state: rgba(239, 83, 80, 0.10);
+}
+
+.qb-trades th {
+    white-space: nowrap;
+}
+
+/* Sortable headers: a button that looks like the header text, with the direction from aria-sort. */
+.qb-sort {
+    background: none;
+    border: 0;
+    color: inherit;
+    font: inherit;
+    padding: 0;
+}
+
+.qb-sort::after {
+    content: " \2195";
+    color: var(--bs-secondary-color);
+}
+
+[aria-sort="ascending"] > .qb-sort::after {
+    content: " \25B2";
+    color: var(--bs-primary);
+}
+
+[aria-sort="descending"] > .qb-sort::after {
+    content: " \25BC";
+    color: var(--bs-primary);
+}
+
+.qb-sort:focus-visible {
+    outline: 2px solid var(--bs-primary);
+    outline-offset: 2px;
+}
+
+/* Exit reason badges: Bootstrap has no purple (the other four reasons use text-bg-*). */
+.qb-exit-trailing {
+    background-color: #8e6cef;
+    color: #fff;
+}
+
 .qb-command {
     background-color: var(--bs-tertiary-bg);
     border-radius: var(--bs-border-radius);

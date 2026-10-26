@@ -77,14 +77,37 @@ function initForm(form) {
     window.addEventListener('pageshow', () => setBusy(false));
 }
 
+// navigator.clipboard only exists in a secure context (HTTPS or localhost). Elsewhere (Docker reached by IP),
+// or if the copy is refused, the link is shown in a read-only input, selected, ready for Ctrl+C.
 async function copyLink(button) {
     const label = button.textContent;
     try {
+        if (!navigator.clipboard) {
+            throw new Error('Clipboard unavailable');
+        }
+
         await navigator.clipboard.writeText(button.dataset.copyLink);
         button.textContent = 'Copied!';
     } catch {
+        if (showFallback(button)) {
+            return;
+        }
+
         button.textContent = 'Copy failed: use the address bar';
     }
 
     setTimeout(() => { button.textContent = label; }, 2000);
+}
+
+function showFallback(button) {
+    const container = document.getElementById(button.getAttribute('aria-controls'));
+    const input = container?.querySelector('input');
+    if (!input) {
+        return false;
+    }
+
+    container.hidden = false;
+    input.focus();
+    input.select();
+    return true;
 }

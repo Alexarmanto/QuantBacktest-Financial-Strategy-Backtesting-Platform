@@ -43,6 +43,19 @@ public class DisplayFormatTests
         DisplayFormat.Ratio(value).Should().Be(expected);
     }
 
+    [Theory] // P4-U6: trade quantity, invariant, thousands grouped, at most 4 decimals, no trailing zeros
+    [InlineData("10", "10")]
+    [InlineData("1.5", "1.5")]
+    [InlineData("2.10000", "2.1")]
+    [InlineData("12.34567", "12.3457")]
+    [InlineData("12.34565", "12.3457")]
+    [InlineData("1234567.25", "1,234,567.25")]
+    [InlineData("0.00004", "0")]
+    public void Quantity_ShowsAtMostFourDecimals(string quantity, string expected)
+    {
+        DisplayFormat.Quantity(decimal.Parse(quantity, CultureInfo.InvariantCulture)).Should().Be(expected);
+    }
+
     [Fact]
     public void Formats_DoNotDependOnTheCurrentCulture() // P4-U14
     {
@@ -54,6 +67,7 @@ public class DisplayFormatTests
             DisplayFormat.Money(-10371.39m).Should().Be("-$10,371.39");
             DisplayFormat.Percent(0.1234).Should().Be("12.34%");
             DisplayFormat.Ratio(1.5).Should().Be("1.50");
+            DisplayFormat.Quantity(1234.5m).Should().Be("1,234.5");
         }
         finally
         {
