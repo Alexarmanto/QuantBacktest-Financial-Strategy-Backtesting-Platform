@@ -2,6 +2,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Text;
 using System.Text.RegularExpressions;
+using Microsoft.AspNetCore.WebUtilities;
 using QuantBacktest.Core;
 using QuantBacktest.Core.Models;
 
@@ -54,12 +55,13 @@ internal sealed record BacktestQuery(
     public const decimal DefaultSlippagePercent = Conventions.DefaultSlippageRate * 100m;
     public static readonly decimal DefaultRiskFreePercent = (decimal)Conventions.DefaultRiskFreeRate * 100m;
 
-    private const decimal MaxFeePercent = Conventions.MaxFeeRate * 100m;
-    private const decimal MaxSlippagePercent = Conventions.MaxSlippageRate * 100m;
-    private const decimal MaxStopLossPercent = Conventions.MaxStopLossFraction * 100m;
-    private const decimal MaxTakeProfitPercent = Conventions.MaxTakeProfitFraction * 100m;
-    private const decimal MaxTrailingStopPercent = Conventions.MaxTrailingStopFraction * 100m;
-    private static readonly decimal MaxRiskFreePercent = (decimal)Conventions.MaxRiskFreeRate * 100m;
+    // Public so the form can show the same ranges as min / max attributes (P4-U1).
+    public const decimal MaxFeePercent = Conventions.MaxFeeRate * 100m;
+    public const decimal MaxSlippagePercent = Conventions.MaxSlippageRate * 100m;
+    public const decimal MaxStopLossPercent = Conventions.MaxStopLossFraction * 100m;
+    public const decimal MaxTakeProfitPercent = Conventions.MaxTakeProfitFraction * 100m;
+    public const decimal MaxTrailingStopPercent = Conventions.MaxTrailingStopFraction * 100m;
+    public static readonly decimal MaxRiskFreePercent = (decimal)Conventions.MaxRiskFreeRate * 100m;
 
     /// <summary>Accepted spellings of tf (case-insensitive). An explicit table, so "0" or "1" are never read as enum values.</summary>
     private static readonly IReadOnlyDictionary<string, Timeframe> Timeframes =
@@ -91,7 +93,7 @@ internal sealed record BacktestQuery(
         var symbol = reader.Text(SymbolKey, "Symbol")?.ToUpperInvariant();
         if (symbol is null)
         {
-            reader.Error(SymbolKey, "Symbol is required.");
+            reader.ErrorIfNone(SymbolKey, "Symbol is required.");
         }
         else if (!Regex.IsMatch(symbol, Conventions.SymbolPattern, RegexOptions.CultureInvariant))
         {
@@ -108,7 +110,7 @@ internal sealed record BacktestQuery(
         var strategyId = reader.Text(StrategyKey, "Strategy");
         if (strategyId is null)
         {
-            reader.Error(StrategyKey, "Strategy is required.");
+            reader.ErrorIfNone(StrategyKey, "Strategy is required.");
         }
 
         var from = reader.Date(FromKey, "Start date");
@@ -189,6 +191,31 @@ internal sealed record BacktestQuery(
     }
 
     /// <summary>
+    /// The same query with every parameter of the strategy made explicit: received values are kept, missing keys
+    /// get the catalog default. The permalink then pins the parameters, even if a default changes later.
+    /// Call after <see cref="ValidateParameters"/> succeeded.
+    /// </summary>
+    public BacktestQuery WithDefaultParameters(IReadOnlyList<ParameterDefinition> definitions)
+    {
+        ArgumentNullException.ThrowIfNull(definitions);
+        var parameters = new Dictionary<string, decimal>(Parameters, StringComparer.Ordinal);
+        foreach (var definition in definitions)
+        {
+            parameters.TryAdd(definition.Key, ToDecimal(definition.DefaultValue));
+        }
+
+        return this with { Parameters = parameters };
+    }
+
+    /// <summary>
+    /// True when the received query string is exactly <see cref="ToQueryString"/> once both are decoded: same
+    /// names, same values, same order. Comparing decoded pairs (not raw text) means "%2E" and "." are equal, so a
+    /// redirect to the canonical URL can never loop on encoding differences.
+    /// </summary>
+    public bool IsCanonical(QueryString received) =>
+        DecodePairs(received.Value).SequenceEqual(DecodePairs(ToQueryString()));
+
+    /// <summary>
     /// Canonical query string, without the leading "?": symbol, tf, strategy, from, to, capital, fee, slip, sl, tp,
     /// ts, rf, then p.* sorted by key (ordinal). Optional fields are written only when set; numbers in their shortest
     /// invariant form. Two queries with the same settings always give the same string.
@@ -241,7 +268,8 @@ internal sealed record BacktestQuery(
         _ => throw new ArgumentOutOfRangeException(nameof(timeframe), timeframe, "Unknown timeframe."),
     };
 
-    private static string? FormatNumber(decimal? value)
+    /// <summary>Shortest invariant form of a number, never an exponent: 10000.00 → "10000", 0.00001 → "0.00001".</summary>
+    public static string? FormatNumber(decimal? value)
     {
         if (value is not { } number)
         {
@@ -250,6 +278,20 @@ internal sealed record BacktestQuery(
 
         // "-0" parses to a negative zero, which must print as "0".
         return (number == 0 ? 0m : number).ToString(ShortestDecimal, CultureInfo.InvariantCulture);
+    }
+
+    /// <summary>A catalog value (double) in the same notation: 1E-05 → "0.00001", 1E+07 → "10000000".</summary>
+    public static string FormatNumber(double value) => FormatNumber(ToDecimal(value))!;
+
+    // Catalog values are small, finite and have few significant digits: the decimal conversion is exact for them.
+    private static decimal ToDecimal(double value) => (decimal)value;
+
+    private static IEnumerable<(string Name, string Value)> DecodePairs(string? queryString)
+    {
+        foreach (var pair in new QueryStringEnumerable(queryString))
+        {
+            yield return (pair.DecodeName().ToString(), pair.DecodeValue().ToString());
+        }
     }
 
     private static string FormatPercent(decimal percent) => FormatNumber(percent) + "%";
@@ -279,6 +321,15 @@ internal sealed record BacktestQuery(
         public IReadOnlyList<QueryFieldError> Errors => _errors;
 
         public void Error(string field, string message) => _errors.Add(new QueryFieldError(field, message));
+
+        /// <summary>Adds the error unless the field already has one (a repeated symbol is not also "required").</summary>
+        public void ErrorIfNone(string field, string message)
+        {
+            if (!_errors.Exists(e => e.Field == field))
+            {
+                Error(field, message);
+            }
+        }
 
         /// <summary>Trimmed value; null when absent or blank. A repeated parameter is an error.</summary>
         public string? Text(string key, string label)

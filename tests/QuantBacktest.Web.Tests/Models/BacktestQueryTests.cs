@@ -304,4 +304,99 @@ public class BacktestQueryTests
         Parse("symbol=AAPL&strategy=buy-and-hold&p.fast=20").ValidateParameters([])
             .Should().ContainSingle().Which.Field.Should().Be("p.fast");
     }
+
+    // ---- Effective parameters and canonical check (PART-4 section 5) ----
+
+    [Fact] // correction 5: missing p.* get the catalog default, received ones are kept
+    public void WithDefaultParameters_MakesEveryParameterExplicit()
+    {
+        var query = Parse("symbol=AAPL&strategy=x&p.threshold=0.1").WithDefaultParameters(Definitions);
+
+        query.Parameters.Should().BeEquivalentTo(new Dictionary<string, decimal> { ["fast"] = 20m, ["threshold"] = 0.1m });
+        query.ToQueryString().Should().EndWith("&p.fast=20&p.threshold=0.1");
+    }
+
+    [Theory] // PART-4 section 5: decoded comparison, so needless encoding is still canonical (no redirect loop)
+    [InlineData(MinimalCanonical)]
+    [InlineData("symbol=%41APL&tf=daily&strategy=sma-crossover&capital=10000&fee=0.1&slip=0&rf=0")]
+    [InlineData("symbol=AAPL&tf=daily&strategy=sma%2Dcrossover&capital=10000&fee=0%2E1&slip=0&rf=0")]
+    [InlineData("?symbol=AAPL&tf=daily&strategy=sma-crossover&capital=10000&fee=0.1&slip=0&rf=0")]
+    public void IsCanonical_ComparesDecodedPairs(string received)
+    {
+        var query = Parse(MinimalCanonical);
+
+        query.IsCanonical(new QueryString(received.StartsWith('?') ? received : "?" + received)).Should().BeTrue();
+    }
+
+    [Theory] // PART-4 section 5: any other name, value, order or extra pair is not canonical
+    [InlineData("symbol=aapl&tf=daily&strategy=sma-crossover&capital=10000&fee=0.1&slip=0&rf=0")]
+    [InlineData("tf=daily&symbol=AAPL&strategy=sma-crossover&capital=10000&fee=0.1&slip=0&rf=0")]
+    [InlineData("symbol=AAPL&tf=daily&strategy=sma-crossover&capital=10000.00&fee=0.1&slip=0&rf=0")]
+    [InlineData("symbol=AAPL&tf=daily&strategy=sma-crossover&from=&capital=10000&fee=0.1&slip=0&rf=0")]
+    [InlineData("symbol=AAPL&tf=daily&strategy=sma-crossover&capital=10000&fee=0.1&slip=0&rf=0&mc=true")]
+    [InlineData("SYMBOL=AAPL&tf=daily&strategy=sma-crossover&capital=10000&fee=0.1&slip=0&rf=0")]
+    [InlineData("symbol=AAPL&tf=daily&strategy=sma-crossover")]
+    public void IsCanonical_RejectsAnyDifference(string received)
+    {
+        Parse(received).IsCanonical(new QueryString("?" + received)).Should().BeFalse();
+    }
+
+    [Fact] // PART-4 section 5: the canonical string of a query is canonical for that query (fixed point, no loop)
+    public void CanonicalString_IsCanonical()
+    {
+        var query = Parse(FullCanonical);
+
+        query.IsCanonical(new QueryString("?" + query.ToQueryString())).Should().BeTrue();
+    }
+
+    // ---- Number formatting (correction 3) ----
+
+    [Theory] // PART-4 section 5: plain notation, and Format(Parse(Format(x))) == Format(x)
+    [InlineData("0.00001", "0.00001")]
+    [InlineData("10000000", "10000000")]
+    [InlineData("0", "0")]
+    [InlineData("20", "20")]
+    [InlineData("-3", "-3")]
+    [InlineData("12.50", "12.5")]
+    public void FormatNumber_IsPlain_AndIdempotent(string value, string expected)
+    {
+        var formatted = BacktestQuery.FormatNumber(decimal.Parse(value, CultureInfo.InvariantCulture))!;
+
+        formatted.Should().Be(expected).And.NotContainAny("E", "e");
+        var reparsed = Parse("symbol=AAPL&strategy=x&p.v=" + formatted).Parameters["v"];
+        BacktestQuery.FormatNumber(reparsed).Should().Be(formatted);
+    }
+
+    [Theory] // PART-4 section 5: catalog values (double) never print as 1E-05 or 1E+07
+    [InlineData(0.00001, "0.00001")]
+    [InlineData(1e7, "10000000")]
+    [InlineData(0.005, "0.005")]
+    [InlineData(200.0, "200")]
+    [InlineData(0.0, "0")]
+    public void FormatNumber_OfACatalogValue_IsPlain_AndIdempotent(double value, string expected)
+    {
+        var formatted = BacktestQuery.FormatNumber(value);
+
+        formatted.Should().Be(expected);
+        BacktestQuery.FormatNumber(Parse("symbol=AAPL&strategy=x&p.v=" + formatted).Parameters["v"]).Should().Be(formatted);
+    }
+
+    // ---- Duplicates and normalisation order (correction 4, decision C) ----
+
+    [Theory] // correction 4: a key given twice is an error, whatever its case (the query collection ignores case)
+    [InlineData("symbol=AAPL&strategy=x&p.fast=10&P.fast=20", "p.fast")]
+    [InlineData("symbol=AAPL&strategy=x&p.fast=10&p.fast=10", "p.fast")]
+    [InlineData("symbol=AAPL&SYMBOL=MSFT&strategy=x", "symbol")]
+    [InlineData("symbol=AAPL&strategy=x&sl=&sl=5", "sl")]
+    public void DuplicateKeys_AreAnError(string queryString, string field)
+    {
+        Errors(queryString).Should().ContainSingle().Which.Field.Should().BeEquivalentTo(field);
+    }
+
+    [Fact] // decision C: the symbol is upper-cased before the pattern check, so lower case is valid
+    public void Symbol_IsUpperCased_BeforeThePatternCheck()
+    {
+        Parse("symbol=brk.b&strategy=x").Symbol.Should().Be("BRK.B");
+        Errors("symbol=%5EGSPC&strategy=x").Should().ContainSingle().Which.Field.Should().Be("symbol");
+    }
 }

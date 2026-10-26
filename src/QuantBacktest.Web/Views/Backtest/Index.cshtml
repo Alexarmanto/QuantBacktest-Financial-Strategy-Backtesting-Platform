@@ -1,5 +1,185 @@
+@model BacktestFormViewModel
 @{
     ViewData["Title"] = "Backtest";
+    var tf = Model.Value(BacktestQuery.TimeframeKey);
+
+    // Server error under its field (P4-U12); Bootstrap shows it next to the .is-invalid input.
+    void FieldError(string? message)
+    {
+        if (message is not null)
+        {
+            <div class="invalid-feedback">@message</div>
+        }
+    }
 }
-<h1 class="h3">Backtest</h1>
-<p class="text-body-secondary">Form coming next.</p>
+
+@functions {
+    // One execution setting in URL units (percent) with the range of the contract (P4-U1). ExclusiveMin: ]min, max],
+    // which HTML cannot express, so backtest-form.js checks it.
+    private sealed record NumberSetting(
+        string Key, string Label, string Min, string? Max, string Help, bool ExclusiveMin = false, bool Required = false);
+}
+
+<h1 class="h3 mb-3">Backtest</h1>
+
+@if (Model.Alert is { } alert)
+{
+    <div class="alert alert-danger" role="alert">
+        <p class="mb-0">@alert.Message</p>
+        @if (alert.Hint is not null)
+        {
+            <p class="mb-0 mt-2">@alert.Hint</p>
+        }
+        @if (alert.Command is not null)
+        {
+            <pre class="qb-command mb-0 mt-2"><code>@alert.Command</code></pre>
+        }
+    </div>
+}
+
+@if (Model.HasErrors)
+{
+    <div class="alert alert-warning" role="alert">
+        <p class="mb-0">Please correct the highlighted fields.</p>
+        @if (Model.OtherErrors.Count > 0)
+        {
+            <ul class="mb-0 mt-2">
+                @foreach (var message in Model.OtherErrors)
+                {
+                    <li>@message</li>
+                }
+            </ul>
+        }
+    </div>
+}
+
+<form id="backtest-form" class="qb-panel" method="get" asp-controller="Backtest" asp-action="Result">
+    <div class="row g-3">
+        <div class="col-12 col-md-4">
+            <label class="form-label" for="symbol">Symbol</label>
+            <input class="form-control qb-symbol @(Model.Error(BacktestQuery.SymbolKey) is null ? "" : "is-invalid")"
+                   id="symbol" name="@BacktestQuery.SymbolKey" value="@Model.Value(BacktestQuery.SymbolKey)"
+                   list="cached-symbols" required maxlength="10" pattern="@BacktestFormViewModel.SymbolInputPattern"
+                   autocomplete="off" spellcheck="false" aria-describedby="symbol-help" />
+            <datalist id="cached-symbols">
+                @foreach (var symbol in Model.CachedSymbols)
+                {
+                    <option value="@symbol"></option>
+                }
+            </datalist>
+            <div id="symbol-help" class="form-text">Letters, digits, '.' or '-'. Cached symbols are suggested.</div>
+            @{ FieldError(Model.Error(BacktestQuery.SymbolKey)); }
+        </div>
+
+        <div class="col-12 col-md-4">
+            <label class="form-label" for="tf">Timeframe</label>
+            <select class="form-select @(Model.Error(BacktestQuery.TimeframeKey) is null ? "" : "is-invalid")"
+                    id="tf" name="@BacktestQuery.TimeframeKey">
+                <option value="daily" selected="@(tf == "daily")">Daily</option>
+                <option value="weekly" selected="@(tf == "weekly")">Weekly</option>
+            </select>
+            @{ FieldError(Model.Error(BacktestQuery.TimeframeKey)); }
+        </div>
+
+        <div class="col-12 col-md-4">
+            <label class="form-label" for="strategy">Strategy</label>
+            <select class="form-select @(Model.Error(BacktestQuery.StrategyKey) is null ? "" : "is-invalid")"
+                    id="strategy" name="@BacktestQuery.StrategyKey" required>
+                @foreach (var (group, options) in new[] { ("Built-in", Model.BuiltInStrategies), ("Custom", Model.CustomStrategies) })
+                {
+                    if (options.Count == 0)
+                    {
+                        continue;
+                    }
+                    <optgroup label="@group">
+                        @foreach (var option in options)
+                        {
+                            <option value="@option.Id" selected="@option.IsSelected"
+                                    data-timeframes="@option.Timeframes" data-restriction="@option.Restriction">@(option.Restriction is null ? option.Name : $"{option.Name} ({option.Restriction})")</option>
+                        }
+                    </optgroup>
+                }
+            </select>
+            @{ FieldError(Model.Error(BacktestQuery.StrategyKey)); }
+        </div>
+
+        @foreach (var option in Model.AllStrategies)
+        {
+            @* Only the selected strategy's inputs are enabled: a disabled fieldset submits nothing (no "Unknown parameter"). *@
+            <fieldset class="col-12" data-strategy-fields="@option.Id" disabled="@(!option.IsSelected)" hidden="@(!option.IsSelected)">
+                <legend class="h6">Parameters of @option.Name</legend>
+                @if (option.Parameters.Count == 0)
+                {
+                    <p class="text-body-secondary mb-0">This strategy has no parameters.</p>
+                }
+                else
+                {
+                    <div class="row g-3">
+                        @foreach (var field in option.Parameters)
+                        {
+                            var id = $"{option.Id}-{field.Name}".Replace('.', '-');
+                            <div class="col-6 col-md-3">
+                                <label class="form-label" for="@id" title="@field.Description">@field.Label</label>
+                                <input class="form-control num @(field.Error is null ? "" : "is-invalid")" type="number"
+                                       id="@id" name="@field.Name" value="@field.Value"
+                                       min="@field.Min" max="@field.Max" step="@field.Step" title="@field.Description" />
+                                <div class="form-text">@field.Min to @field.Max</div>
+                                @{ FieldError(field.Error); }
+                            </div>
+                        }
+                    </div>
+                }
+            </fieldset>
+        }
+
+        <div class="col-6 col-md-3">
+            <label class="form-label" for="from">Start date</label>
+            <input class="form-control @(Model.Error(BacktestQuery.FromKey) is null ? "" : "is-invalid")" type="date"
+                   id="from" name="@BacktestQuery.FromKey" value="@Model.Value(BacktestQuery.FromKey)" />
+            <div class="form-text">Optional.</div>
+            @{ FieldError(Model.Error(BacktestQuery.FromKey)); }
+        </div>
+
+        <div class="col-6 col-md-3">
+            <label class="form-label" for="to">End date</label>
+            <input class="form-control @(Model.Error(BacktestQuery.ToKey) is null ? "" : "is-invalid")" type="date"
+                   id="to" name="@BacktestQuery.ToKey" value="@Model.Value(BacktestQuery.ToKey)" />
+            <div class="form-text">Optional.</div>
+            @{ FieldError(Model.Error(BacktestQuery.ToKey)); }
+        </div>
+
+        @foreach (var setting in new[]
+        {
+            new NumberSetting(BacktestQuery.CapitalKey, "Initial capital ($)", "0", null, "Greater than 0.", ExclusiveMin: true, Required: true),
+            new NumberSetting(BacktestQuery.FeeKey, "Fee (%)", "0", BacktestQuery.FormatNumber(BacktestQuery.MaxFeePercent), $"0 to {BacktestQuery.FormatNumber(BacktestQuery.MaxFeePercent)}%, per fill."),
+            new NumberSetting(BacktestQuery.SlippageKey, "Slippage (%)", "0", BacktestQuery.FormatNumber(BacktestQuery.MaxSlippagePercent), $"0 to {BacktestQuery.FormatNumber(BacktestQuery.MaxSlippagePercent)}%."),
+            new NumberSetting(BacktestQuery.RiskFreeKey, "Risk-free rate (%/year)", "0", BacktestQuery.FormatNumber(BacktestQuery.MaxRiskFreePercent), $"0 to {BacktestQuery.FormatNumber(BacktestQuery.MaxRiskFreePercent)}%."),
+            new NumberSetting(BacktestQuery.StopLossKey, "Stop-loss (%)", "0", BacktestQuery.FormatNumber(BacktestQuery.MaxStopLossPercent), $"Up to {BacktestQuery.FormatNumber(BacktestQuery.MaxStopLossPercent)}%. Empty = off.", ExclusiveMin: true),
+            new NumberSetting(BacktestQuery.TakeProfitKey, "Take-profit (%)", "0", BacktestQuery.FormatNumber(BacktestQuery.MaxTakeProfitPercent), $"Up to {BacktestQuery.FormatNumber(BacktestQuery.MaxTakeProfitPercent)}%. Empty = off.", ExclusiveMin: true),
+            new NumberSetting(BacktestQuery.TrailingStopKey, "Trailing stop (%)", "0", BacktestQuery.FormatNumber(BacktestQuery.MaxTrailingStopPercent), $"Up to {BacktestQuery.FormatNumber(BacktestQuery.MaxTrailingStopPercent)}%. Empty = off.", ExclusiveMin: true),
+        })
+        {
+            var error = Model.Error(setting.Key);
+            <div class="col-6 col-md-3">
+                <label class="form-label" for="@setting.Key">@setting.Label</label>
+                <input class="form-control num @(error is null ? "" : "is-invalid")" type="number" step="any"
+                       id="@setting.Key" name="@setting.Key" value="@Model.Value(setting.Key)"
+                       min="@(setting.ExclusiveMin ? null : setting.Min)" max="@setting.Max"
+                       data-exclusive-min="@(setting.ExclusiveMin ? setting.Min : null)" required="@setting.Required" />
+                <div class="form-text">@setting.Help</div>
+                @{ FieldError(error); }
+            </div>
+        }
+    </div>
+
+    <div class="mt-4">
+        <button type="submit" class="btn btn-primary" data-submit>
+            <span class="spinner-border spinner-border-sm me-1" aria-hidden="true" hidden data-spinner></span>
+            <span data-submit-label>Run backtest</span>
+        </button>
+    </div>
+</form>
+
+@section Scripts {
+    <script type="module" src="~/js/backtest-form.js" asp-append-version="true"></script>
+}
