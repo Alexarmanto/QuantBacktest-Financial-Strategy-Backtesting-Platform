@@ -16,6 +16,18 @@
     --qb-gain: #2fbf71;
     --qb-loss: #ef5350;
     --qb-surface: var(--bs-secondary-bg);
+
+    /* Chart series (read by charts.js): neutral hues only, green and red stay for buys / sells. */
+    --qb-series-strategy: #4c8dff;
+    --qb-series-strategy-fill: rgba(76, 141, 255, 0.25);
+    --qb-series-benchmark: #9aa7b8;
+    --qb-series-benchmark-fill: rgba(154, 167, 184, 0.15);
+    --qb-series-price: #d6dde6;
+    --qb-series-1: #f0b429;
+    --qb-series-2: #22c3e6;
+    --qb-series-3: #b18cff;
+    --qb-series-4: #ff7ab6;
+    --qb-series-5: #c9b28a;
 }
 
 /* Numbers: aligned digits, right-aligned, never wrapped. */
@@ -92,6 +104,26 @@
 
 .qb-collapse-toggle[aria-expanded="true"]::after {
     content: " \25BE";
+}
+
+/* Charts: a fixed height per chart, the canvas fills its container (maintainAspectRatio: false). */
+.qb-chart {
+    position: relative;
+    height: 320px;
+}
+
+.qb-chart-sm {
+    height: 200px;
+}
+
+@media (max-width: 575.98px) {
+    .qb-chart {
+        height: 240px;
+    }
+
+    .qb-chart-sm {
+        height: 160px;
+    }
 }
 
 /* Trade rows: a faint gain / loss tint, the text keeps its normal contrast. */

@@ -2,6 +2,7 @@
 @{
     var header = Model.Header;
     var actions = Model.Actions;
+    var charts = Model.Charts;
     ViewData["Title"] = $"{header.Symbol} · {header.StrategyName}";
 
     // Prints one sortable cell; every text and sort key comes formatted from the model.
@@ -59,8 +60,8 @@
                     <thead>
                         <tr>
                             <th scope="col">Metric</th>
-                            <th scope="col" class="num">Strategy</th>
-                            <th scope="col" class="num">Buy &amp; hold</th>
+                            <th scope="col" class="num">@BacktestResultViewModel.StrategyColumn</th>
+                            <th scope="col" class="num">@BacktestResultViewModel.BenchmarkColumn</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -103,6 +104,51 @@
                     }
                 </dl>
             }
+        </section>
+    </div>
+
+    <div class="col-12">
+        <section class="qb-panel">
+            <h2 class="h5">Charts</h2>
+
+            <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-2">
+                <h3 class="h6 mb-0">Equity</h3>
+                @if (charts.LogScaleAvailable)
+                {
+                    <button type="button" class="btn btn-sm btn-outline-secondary" data-chart-log-toggle
+                            aria-pressed="false" aria-controls="chart-equity">@ResultChartsViewModel.LogScaleLabel</button>
+                }
+                else
+                {
+                    <span class="d-inline-block" title="@ResultChartsViewModel.LogScaleUnavailable">
+                        <button type="button" class="btn btn-sm btn-outline-secondary" aria-pressed="false" disabled>@ResultChartsViewModel.LogScaleLabel</button>
+                    </span>
+                }
+            </div>
+            <div class="qb-chart mb-4">
+                <canvas id="chart-equity" role="img" aria-label="@charts.EquitySummary"></canvas>
+            </div>
+
+            <h3 class="h6">Drawdown</h3>
+            <div class="qb-chart mb-4">
+                <canvas id="chart-drawdown" role="img" aria-label="@charts.DrawdownSummary"></canvas>
+            </div>
+
+            <h3 class="h6">Price, indicators and trades</h3>
+            <div class="qb-chart@(charts.HasOscillator ? " mb-4" : null)">
+                <canvas id="chart-price" role="img" aria-label="@charts.PriceSummary"></canvas>
+            </div>
+
+            @if (charts.HasOscillator)
+            {
+                <h3 class="h6">Oscillators</h3>
+                <div class="qb-chart qb-chart-sm">
+                    <canvas id="chart-oscillator" role="img" aria-label="@charts.OscillatorSummary"></canvas>
+                </div>
+            }
+
+            @* The only inline script allowed (P4-U16): data, never code. The serializer escapes < > &. *@
+            <script type="application/json" id="result-charts-data">@Html.Raw(charts.Json)</script>
         </section>
     </div>
 
@@ -156,9 +202,9 @@
                             {
                                 <tr class="@row.RowClass">
                                     @{
-                                        Cell(row.EntryDate);
+                                        Cell(row.EntryDate, ResultTradesViewModel.DateCell);
                                         Cell(row.EntryPrice, ResultTradesViewModel.NumberCell);
-                                        Cell(row.ExitDate);
+                                        Cell(row.ExitDate, ResultTradesViewModel.DateCell);
                                         Cell(row.ExitPrice, ResultTradesViewModel.NumberCell);
                                         Cell(row.Quantity, ResultTradesViewModel.NumberCell);
                                         Cell(row.Fees, ResultTradesViewModel.NumberCell);
@@ -182,4 +228,7 @@
 @section Scripts {
     <script type="module" src="~/js/backtest-form.js" asp-append-version="true"></script>
     <script type="module" src="~/js/table-sort.js" asp-append-version="true"></script>
+    @* Chart.js ships as UMD only: a classic script defines globalThis.Chart before the (deferred) module runs. *@
+    <script src="~/lib/chart.js/chart.umd.min.js"></script>
+    <script type="module" src="~/js/charts.js" asp-append-version="true"></script>
 }

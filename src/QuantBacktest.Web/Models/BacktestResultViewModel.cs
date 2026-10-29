@@ -14,16 +14,21 @@ internal sealed record MetricRow(
     string BuyAndHoldTone = ValueTone.Neutral);
 
 /// <summary>
-/// Result page (P4-U3, P4-U4, P4-U6, P4-U7). Every value is already computed by IBacktestService: this model only
+/// Result page (P4-U3 to P4-U7). Every value is already computed by IBacktestService: this model only
 /// formats (DisplayFormat, P4-U14) and picks a colour from the sign of a value. The view only prints it.
 /// </summary>
 internal sealed record BacktestResultViewModel(
     ResultHeaderViewModel Header,
     IReadOnlyList<MetricRow> Metrics,
+    ResultChartsViewModel Charts,
     ResultTradesViewModel Trades,
     ResultActionsViewModel Actions)
 {
     public const string Disabled = "Off";
+
+    /// <summary>Column headers of the metrics table, reused as the legend of the charts (P4-U5).</summary>
+    public const string StrategyColumn = "Strategy";
+    public const string BenchmarkColumn = "Buy & hold";
 
     /// <param name="query">The effective (canonical) query of this result: it builds every action URL.</param>
     /// <param name="permalink">Absolute URL of this result, copied by "Copy link".</param>
@@ -43,6 +48,7 @@ internal sealed record BacktestResultViewModel(
         return new BacktestResultViewModel(
             CreateHeader(result, strategy, permalink),
             CreateMetricRows(result.Metrics, result.BenchmarkMetrics, result.Request.Timeframe),
+            ResultChartsViewModel.Create(result),
             ResultTradesViewModel.Create(result.Trades),
             ResultActionsViewModel.Create(query, strategy, pathBase));
     }
