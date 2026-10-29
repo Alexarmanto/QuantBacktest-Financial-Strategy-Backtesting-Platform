@@ -135,6 +135,7 @@ To be added by the author at the moments listed in `docs/parts/PART-3.md` (secti
 | `part3-08-results-real.png` | Metrics of a real backtest with stops, strategy against buy and hold. |
 | `part3-09-trades-exit-reasons.png` | The trade log showing several exit reasons. |
 | `part3-10-heatmap-real.png` | A real heatmap with the overfitting warning. |
+| `part3-11-pr-<n>.png` | The page of each merged pull request (#24 to #29): both CI checks green, ready to squash and merge. |
 
 ## Limitations
 
