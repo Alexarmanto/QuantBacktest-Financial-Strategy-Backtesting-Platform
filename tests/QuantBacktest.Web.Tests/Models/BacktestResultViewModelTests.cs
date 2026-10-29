@@ -124,6 +124,16 @@ public class BacktestResultViewModelTests
         others.Should().OnlyContain(r => r.StrategyTone == ValueTone.Neutral && r.BuyAndHoldTone == ValueTone.Neutral);
     }
 
+    // ---- Charts (P4-U5) ----
+
+    [Fact] // P4-U5: the charts are built from the same result
+    public void Charts_AreBuiltFromTheResult()
+    {
+        var result = Result();
+
+        Create(result).Charts.Should().BeEquivalentTo(ResultChartsViewModel.Create(result));
+    }
+
     // ---- Header (P4-U3) ----
 
     [Fact] // P4-U3: actual period from Bars, timeframe, strategy card

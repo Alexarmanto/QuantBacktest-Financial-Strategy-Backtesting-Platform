@@ -10,7 +10,10 @@ namespace QuantBacktest.Web.Models;
 /// </summary>
 internal sealed record SortableCell(string Text, string SortValue);
 
-/// <summary>Header of a sortable column. SortType is "number" or "text" (read by table-sort.js); CssClass aligns numbers.</summary>
+/// <summary>
+/// Header of a sortable column. SortType is "number" or "text" (read by table-sort.js); CssClass aligns numbers and
+/// keeps dates and numbers on one line (at 360 px the table scrolls inside .table-responsive instead).
+/// </summary>
 internal sealed record TradeColumn(string Label, string SortType, string? CssClass);
 
 internal sealed record TradeRow(
@@ -35,16 +38,17 @@ internal sealed record ResultTradesViewModel(IReadOnlyList<TradeColumn> Columns,
     public const string NumberSort = "number";
     public const string TextSort = "text";
 
-    public const string NumberCell = "num";
+    public const string DateCell = "text-nowrap";
+    public const string NumberCell = "num text-nowrap";
 
     public const string GainRow = "qb-row-gain";
     public const string LossRow = "qb-row-loss";
 
     public static IReadOnlyList<TradeColumn> TradeColumns { get; } =
     [
-        new("Entry date", TextSort, null),
+        new("Entry date", TextSort, DateCell),
         new("Entry price", NumberSort, NumberCell),
-        new("Exit date", TextSort, null),
+        new("Exit date", TextSort, DateCell),
         new("Exit price", NumberSort, NumberCell),
         new("Quantity", NumberSort, NumberCell),
         new("Fees", NumberSort, NumberCell),

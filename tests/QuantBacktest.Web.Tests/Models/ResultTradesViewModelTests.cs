@@ -30,6 +30,16 @@ public class ResultTradesViewModelTests
             "text", "number", "text", "number", "number", "number", "number", "number", "number", "number");
     }
 
+    [Fact] // P4-U6, P4-U14 (360 px): dates and numbers never wrap; only the exit reason badge may
+    public void Columns_DatesAndNumbersDoNotWrap()
+    {
+        var model = ResultTradesViewModel.Create([]);
+
+        model.Columns.Select(c => c.CssClass).Should().Equal(
+            "text-nowrap", "num text-nowrap", "text-nowrap", "num text-nowrap", "num text-nowrap",
+            "num text-nowrap", "num text-nowrap", "num text-nowrap", null, "num text-nowrap");
+    }
+
     [Fact] // P4-U6, P4-U14: formatted texts
     public void Row_IsFormatted()
     {
