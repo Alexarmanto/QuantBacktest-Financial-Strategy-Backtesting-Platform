@@ -1,4 +1,4 @@
-﻿using QuantBacktest.Core.Models;
+using QuantBacktest.Core.Models;
 using QuantBacktest.Engine.Tests.TestSupport;
 using QuantBacktest.Fakes;
 
@@ -116,6 +116,25 @@ public class BacktestEnginePropertyTests
         }
     }
 
+    [Theory]
+    [MemberData(nameof(Seeds))]
+    public void WithProtectiveExits_TheInvariantsStillHold(int seed)
+    {
+        ExecutionSettings settings = ReferenceSeries.Settings(
+            slippage: 0.001m, stopLoss: 0.03m, takeProfit: 0.06m, trailingStop: 0.04m);
+
+        BacktestResult result = RunRandom(seed, settings);
+
+        result.Equity.Should().OnlyContain(point => point.StrategyEquity >= 0);
+        result.Equity[^1].StrategyEquity.Should().BeApproximately(
+            10_000m + result.Trades.Sum(trade => trade.NetProfit), 0.000000001m);
+        result.Trades.Should().OnlyContain(trade => trade.HoldingBars >= 0 && trade.EntryDate <= trade.ExitDate);
+        result.Trades.Should().Contain(trade => trade.ExitReason != ExitReason.Signal && trade.ExitReason != ExitReason.EndOfData);
+        for (int i = 1; i < result.Trades.Count; i++)
+        {
+            result.Trades[i].EntryDate.Should().BeOnOrAfter(result.Trades[i - 1].ExitDate);
+        }
+    }
     [Fact]
     public void NoLookAhead_EntryDependsOnTheNextOpen_NotOnTheNextClose() // X3, X4
     {

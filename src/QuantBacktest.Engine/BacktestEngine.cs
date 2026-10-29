@@ -1,4 +1,4 @@
-﻿using QuantBacktest.Core.Abstractions;
+using QuantBacktest.Core.Abstractions;
 using QuantBacktest.Core.Errors;
 using QuantBacktest.Core.Models;
 
@@ -36,6 +36,7 @@ internal sealed class BacktestEngine : IBacktestEngine
         List<decimal> equity = new(barCount);
         List<bool> inPosition = new(barCount);
         Signal pending = Signal.Hold;
+        decimal entryPeak = 0; // highest price since the entry, used by the trailing stop (X8)
 
         for (int i = first; i <= last; i++)
         {
@@ -45,13 +46,27 @@ internal sealed class BacktestEngine : IBacktestEngine
             if (pending == Signal.Buy && !portfolio.IsInvested)
             {
                 portfolio.Buy(bar.Date, i, bar.Open);
+                entryPeak = portfolio.EntryPrice;
             }
             else if (pending == Signal.Sell && portfolio.IsInvested)
             {
                 portfolio.Sell(bar.Date, bar.Open, ExitReason.Signal, i - portfolio.EntryIndex);
             }
 
-            // (b) protective exits: added with the stop-loss, take-profit and trailing stop
+            // (b) X8: stop-loss, take-profit and trailing stop
+            if (portfolio.IsInvested)
+            {
+                if (FindProtectiveExit(bar, i, portfolio.EntryPrice, portfolio.EntryIndex, entryPeak, settings,
+                        out decimal exitPrice, out ExitReason exitReason))
+                {
+                    portfolio.Sell(bar.Date, exitPrice, exitReason, i - portfolio.EntryIndex);
+                }
+                else
+                {
+                    // the High of this bar counts for the peak of the next bars
+                    entryPeak = Math.Max(entryPeak, bar.High);
+                }
+            }
 
             // (c) X10: the position still open on the last bar is sold at the Close
             bool heldAtClose = portfolio.IsInvested;
@@ -82,17 +97,17 @@ internal sealed class BacktestEngine : IBacktestEngine
 
         // X15: drawdown of each point
         List<EquityPoint> points = new(barCount);
-        decimal peak = settings.InitialCapital;
+        decimal equityPeak = settings.InitialCapital;
         decimal benchmarkPeak = settings.InitialCapital;
         for (int k = 0; k < barCount; k++)
         {
-            peak = Math.Max(peak, equity[k]);
+            equityPeak = Math.Max(equityPeak, equity[k]);
             benchmarkPeak = Math.Max(benchmarkPeak, benchmarkEquity[k]);
             points.Add(new EquityPoint(
                 dates[k],
                 equity[k],
                 benchmarkEquity[k],
-                (double)((peak - equity[k]) / peak),
+                (double)((equityPeak - equity[k]) / equityPeak),
                 (double)((benchmarkPeak - benchmarkEquity[k]) / benchmarkPeak),
                 inPosition[k]));
         }
@@ -116,6 +131,77 @@ internal sealed class BacktestEngine : IBacktestEngine
             Indicators: slicedIndicators);
     }
 
+    /// <summary>
+    /// X8 and X9. Looks for a stop or a target hit on this bar. Order: gap at the Open (stop, then target), then
+    /// during the bar (stop, then target): the stop always comes first, the prudent assumption.
+    /// Returns the reference price (before slippage) and the exit reason.
+    /// </summary>
+    private static bool FindProtectiveExit(
+        PriceBar bar, int index, decimal entryPrice, int entryIndex, decimal peak, ExecutionSettings settings,
+        out decimal exitPrice, out ExitReason reason)
+    {
+        exitPrice = 0;
+        reason = ExitReason.Signal;
+
+        // the stop level is the highest of the active levels
+        decimal? stopLevel = null;
+        ExitReason stopReason = ExitReason.StopLoss;
+        if (settings.StopLossFraction != null)
+        {
+            stopLevel = entryPrice * (1 - settings.StopLossFraction.Value);
+        }
+
+        if (settings.TrailingStopFraction != null)
+        {
+            decimal trailingLevel = peak * (1 - settings.TrailingStopFraction.Value);
+            if (stopLevel == null || trailingLevel > stopLevel.Value)
+            {
+                stopLevel = trailingLevel;
+                stopReason = ExitReason.TrailingStop;
+            }
+        }
+
+        decimal? target = null;
+        if (settings.TakeProfitFraction != null)
+        {
+            target = entryPrice * (1 + settings.TakeProfitFraction.Value);
+        }
+
+        // gap at the Open: not possible on the bar of the entry, the Open is the entry price itself
+        if (index > entryIndex)
+        {
+            if (stopLevel != null && bar.Open <= stopLevel.Value)
+            {
+                exitPrice = bar.Open;
+                reason = stopReason;
+                return true;
+            }
+
+            if (target != null && bar.Open >= target.Value)
+            {
+                exitPrice = bar.Open;
+                reason = ExitReason.TakeProfit;
+                return true;
+            }
+        }
+
+        // during the bar
+        if (stopLevel != null && bar.Low <= stopLevel.Value)
+        {
+            exitPrice = stopLevel.Value;
+            reason = stopReason;
+            return true;
+        }
+
+        if (target != null && bar.High >= target.Value)
+        {
+            exitPrice = target.Value;
+            reason = ExitReason.TakeProfit;
+            return true;
+        }
+
+        return false;
+    }
     /// <summary>X1: first and last index of the bars with From &lt;= date &lt;= To (a null bound is open).</summary>
     private static void FindPeriod(IReadOnlyList<PriceBar> bars, DateOnly? from, DateOnly? to, out int first, out int last)
     {
