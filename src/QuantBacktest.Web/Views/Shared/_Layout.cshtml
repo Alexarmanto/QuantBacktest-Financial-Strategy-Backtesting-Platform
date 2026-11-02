@@ -7,7 +7,7 @@
         ("Compare", "Compare", false),
         ("Optimize", "Optimize", false),
         ("Validate", "Validate", false),
-        ("Strategies", "Strategies", false),
+        ("Strategies", "Strategies", true),
         ("Data", "Data", false),
     };
     var currentController = ViewContext.RouteData.Values["controller"] as string;
@@ -71,6 +71,7 @@
     </footer>
 
     <script src="~/lib/bootstrap/js/bootstrap.bundle.min.js"></script>
+    <script type="module" src="~/js/confirm.js" asp-append-version="true"></script>
     @await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>

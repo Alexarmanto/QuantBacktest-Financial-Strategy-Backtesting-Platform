@@ -85,15 +85,15 @@ internal sealed class BacktestFormViewModel
 
         string? Raw(string key) => query.ContainsKey(key) ? query[key].ToString() : null;
 
-        // A blank form proposes a symbol and a strategy; once the user has sent something, the input is kept as is.
-        var isBlank = query.Count == 0;
+        // A missing symbol key gets the first cached symbol: blank form, or a link that only picks a strategy
+        // ("Use this strategy"). A sent form always has the key, so its input is kept as typed, even empty (P4-U12).
         var selected = strategies.FirstOrDefault(s => s.Id == Raw(BacktestQuery.StrategyKey))
             ?? strategies.FirstOrDefault(s => s.Id == PreferredStrategyId)
             ?? strategies.FirstOrDefault();
 
         var values = new Dictionary<string, string>(StringComparer.Ordinal)
         {
-            [BacktestQuery.SymbolKey] = Raw(BacktestQuery.SymbolKey) ?? (isBlank ? cachedSymbols.FirstOrDefault() : null) ?? string.Empty,
+            [BacktestQuery.SymbolKey] = Raw(BacktestQuery.SymbolKey) ?? cachedSymbols.FirstOrDefault() ?? string.Empty,
             [BacktestQuery.TimeframeKey] = Raw(BacktestQuery.TimeframeKey) ?? BacktestQuery.FormatTimeframe(BacktestQuery.DefaultTimeframe),
             [BacktestQuery.StrategyKey] = selected?.Id ?? string.Empty,
             [BacktestQuery.FromKey] = Raw(BacktestQuery.FromKey) ?? string.Empty,
@@ -136,13 +136,14 @@ internal sealed class BacktestFormViewModel
                     name => isSelected ? fieldErrors.GetValueOrDefault(name) : null));
         }
 
+        var (builtIn, custom) = StrategyGroups.Split(strategies);
         return new BacktestFormViewModel(
             values,
             fieldErrors,
             otherErrors,
             alert,
-            strategies.Where(s => s.Category != StrategyCategory.Custom).Select(ToOption).ToList(),
-            strategies.Where(s => s.Category == StrategyCategory.Custom).Select(ToOption).ToList(),
+            builtIn.Select(ToOption).ToList(),
+            custom.Select(ToOption).ToList(),
             cachedSymbols);
     }
 }

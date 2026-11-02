@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.WebUtilities;
 using QuantBacktest.Core.Models;
 using QuantBacktest.Web.Models;
+using QuantBacktest.Web.Tests.TestDoubles;
 
 namespace QuantBacktest.Web.Tests.Models;
 
@@ -398,5 +399,29 @@ public class BacktestQueryTests
     {
         Parse("symbol=brk.b&strategy=x").Symbol.Should().Be("BRK.B");
         Errors("symbol=%5EGSPC&strategy=x").Should().ContainSingle().Which.Field.Should().Be("symbol");
+    }
+
+    // ---- "Use this strategy" link of the catalog (P4-U8, decision 4 of PR 4a) ----
+
+    [Fact] // P4-U8, P4-U16: only the strategy when it supports the default timeframe of the form
+    public void FormQueryString_CarriesOnlyTheStrategy()
+    {
+        BacktestQuery.FormQueryString(new StubStrategy { Id = "sma-crossover" }).Should().Be("strategy=sma-crossover");
+        BacktestQuery.FormQueryString(new StubStrategy { Id = "turn-of-month", SupportedTimeframes = [Timeframe.Daily] })
+            .Should().Be("strategy=turn-of-month");
+    }
+
+    [Fact] // P4-U8, decision 4: a strategy without the default timeframe opens the form on its first supported one
+    public void FormQueryString_AddsTheFirstSupportedTimeframe_WhenTheDefaultIsNotSupported()
+    {
+        var weeklyOnly = new StubStrategy { Id = "weekly-only", SupportedTimeframes = [Timeframe.Weekly] };
+
+        BacktestQuery.FormQueryString(weeklyOnly).Should().Be("strategy=weekly-only&tf=weekly");
+    }
+
+    [Fact] // P4-U16: the id is escaped like every other URL value
+    public void FormQueryString_EscapesTheId()
+    {
+        BacktestQuery.FormQueryString(new StubStrategy { Id = "a b&c" }).Should().Be("strategy=a%20b%26c");
     }
 }
