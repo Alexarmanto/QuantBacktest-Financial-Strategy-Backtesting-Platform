@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging.Abstractions;
 using QuantBacktest.Core.Abstractions;
+using QuantBacktest.Core.Errors;
 using QuantBacktest.Core.Models;
 using QuantBacktest.Fakes;
 using QuantBacktest.Web.Controllers;
@@ -307,6 +308,35 @@ public class BacktestControllerTests
 
         form.Alert.Should().Be(new FormAlert("Not enough bars in the selected period."));
         form.Value(BacktestQuery.FromKey).Should().Be("1990-01-01");
+    }
+
+    /// <summary>
+    /// Real catalog behaviour for a stored custom definition that has become invalid (PART-2 P2-C1): GetAllAsync
+    /// skips it, FindAsync throws BacktestValidationException with the problems.
+    /// </summary>
+    private sealed class InvalidCustomStrategyCatalog(IStrategyCatalog inner, string invalidId) : IStrategyCatalog
+    {
+        public const string Problems = "The entry rule needs at least one condition.";
+
+        public Task<IReadOnlyList<IStrategy>> GetAllAsync(CancellationToken cancellationToken = default) =>
+            inner.GetAllAsync(cancellationToken);
+
+        public Task<IStrategy?> FindAsync(string id, CancellationToken cancellationToken = default) =>
+            id == invalidId ? throw new BacktestValidationException(Problems) : inner.FindAsync(id, cancellationToken);
+    }
+
+    [Fact] // P4-U12, PART-2 P2-C1: an invalid stored custom strategy is a validation alert on the form, never a 500
+    public async Task Result_InvalidCustomStrategy_ShowsTheMessage()
+    {
+        const string query = "symbol=AAPL&tf=daily&strategy=custom-broken&capital=10000&fee=0.1&slip=0&rf=0";
+        var catalog = new InvalidCustomStrategyCatalog(FakeCatalog(), "custom-broken");
+
+        var view = (await ResultAsync(query, catalog)).Should().BeOfType<ViewResult>().Subject;
+
+        view.ViewName.Should().Be("Index");
+        var form = view.Model.Should().BeOfType<BacktestFormViewModel>().Subject;
+        form.Alert.Should().Be(new FormAlert(InvalidCustomStrategyCatalog.Problems));
+        form.Value(BacktestQuery.SymbolKey).Should().Be("AAPL");
     }
 
     [Fact] // P4-U12: any other exception is a bug and goes to /Home/Error (not caught here)

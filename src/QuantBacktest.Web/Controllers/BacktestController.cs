@@ -37,38 +37,40 @@ public sealed class BacktestController(
             return await FormAsync(errors, alert: null, cancellationToken);
         }
 
-        var strategy = await catalog.FindAsync(query.StrategyId, cancellationToken);
-        if (strategy is null)
-        {
-            return await FormAsync(
-                [new QueryFieldError(BacktestQuery.StrategyKey, $"Unknown strategy '{query.StrategyId}'.")],
-                alert: null,
-                cancellationToken);
-        }
-
-        var strategyErrors = query.ValidateParameters(strategy.Parameters).ToList();
-        if (!strategy.SupportedTimeframes.Contains(query.Timeframe))
-        {
-            strategyErrors.Insert(0, new QueryFieldError(
-                BacktestQuery.StrategyKey,
-                $"{strategy.Name} does not support the {BacktestQuery.FormatTimeframe(query.Timeframe)} timeframe "
-                + $"({StrategyOption.TimeframeRestriction(strategy)})."));
-        }
-
-        if (strategyErrors.Count > 0)
-        {
-            return await FormAsync(strategyErrors, alert: null, cancellationToken);
-        }
-
-        // The permalink carries every effective setting, strategy defaults included.
-        var effective = query.WithDefaultParameters(strategy.Parameters);
-        if (!effective.IsCanonical(Request.QueryString))
-        {
-            return Redirect(ResultPath + "?" + effective.ToQueryString());
-        }
-
         try
         {
+            // Inside the try: FindAsync throws BacktestValidationException for a stored custom definition that has
+            // become invalid (PART-2 P2-C1), which is shown like any other refused request, never as a 500.
+            var strategy = await catalog.FindAsync(query.StrategyId, cancellationToken);
+            if (strategy is null)
+            {
+                return await FormAsync(
+                    [new QueryFieldError(BacktestQuery.StrategyKey, $"Unknown strategy '{query.StrategyId}'.")],
+                    alert: null,
+                    cancellationToken);
+            }
+
+            var strategyErrors = query.ValidateParameters(strategy.Parameters).ToList();
+            if (!strategy.SupportedTimeframes.Contains(query.Timeframe))
+            {
+                strategyErrors.Insert(0, new QueryFieldError(
+                    BacktestQuery.StrategyKey,
+                    $"{strategy.Name} does not support the {BacktestQuery.FormatTimeframe(query.Timeframe)} timeframe "
+                    + $"({StrategyOption.TimeframeRestriction(strategy)})."));
+            }
+
+            if (strategyErrors.Count > 0)
+            {
+                return await FormAsync(strategyErrors, alert: null, cancellationToken);
+            }
+
+            // The permalink carries every effective setting, strategy defaults included.
+            var effective = query.WithDefaultParameters(strategy.Parameters);
+            if (!effective.IsCanonical(Request.QueryString))
+            {
+                return Redirect(ResultPath + "?" + effective.ToQueryString());
+            }
+
             var result = await backtests.RunAsync(effective.ToBacktestRequest(), cancellationToken);
             var permalink = $"{Request.Scheme}://{Request.Host}{ResultPath}?{effective.ToQueryString()}";
             return View(BacktestResultViewModel.Create(result, strategy, effective, permalink, Request.PathBase.Value ?? string.Empty));

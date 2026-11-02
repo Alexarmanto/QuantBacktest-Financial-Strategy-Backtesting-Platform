@@ -92,11 +92,25 @@ public class BacktestFormViewModelTests
         form.HasErrors.Should().BeTrue();
     }
 
-    [Fact] // decision E: blank form gets the first cached symbol; a sent form keeps the symbol as typed (even empty)
-    public void DefaultSymbol_OnlyOnABlankForm()
+    [Fact] // decision E (revised in PR 4a): a missing symbol key gets the first cached symbol; a sent key is kept as typed, even empty
+    public void DefaultSymbol_OnlyWhenTheSymbolKeyIsMissing()
     {
         Create("").Value("symbol").Should().Be("MSFT");
-        Create("strategy=sma-crossover").Value("symbol").Should().BeEmpty();
+        Create("strategy=sma-crossover").Value("symbol").Should().Be("MSFT");
+        Create("symbol=&strategy=sma-crossover").Value("symbol").Should().BeEmpty();
+        Create("symbol=jpm").Value("symbol").Should().Be("jpm");
+    }
+
+    [Fact] // P4-U8: the "Use this strategy" link opens the form with that strategy selected and a proposed symbol
+    public void UseThisStrategyLink_PreselectsTheStrategy()
+    {
+        var form = Create(BacktestQuery.FormQueryString(Custom));
+
+        form.Value("strategy").Should().Be("custom-dip");
+        form.AllStrategies.Single(s => s.IsSelected).Id.Should().Be("custom-dip");
+        form.Value("symbol").Should().Be("MSFT");
+        form.Value("tf").Should().Be("daily");
+        form.HasErrors.Should().BeFalse();
     }
 
     [Fact] // P4-U1: a daily-only strategy carries its restriction for setCustomValidity

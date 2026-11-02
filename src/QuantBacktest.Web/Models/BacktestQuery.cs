@@ -4,6 +4,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.WebUtilities;
 using QuantBacktest.Core;
+using QuantBacktest.Core.Abstractions;
 using QuantBacktest.Core.Models;
 
 namespace QuantBacktest.Web.Models;
@@ -238,6 +239,24 @@ internal sealed record BacktestQuery(
         foreach (var (key, value) in Parameters.OrderBy(p => p.Key, StringComparer.Ordinal))
         {
             Append(builder, ParameterPrefix + key, FormatNumber(value));
+        }
+
+        return builder.ToString();
+    }
+
+    /// <summary>
+    /// Query string, without the leading "?", of a backtest form that preselects one strategy ("Use this strategy",
+    /// P4-U8): strategy=&lt;id&gt;, plus tf=&lt;first supported timeframe&gt; when the strategy does not support the
+    /// default timeframe of the form. Every other field keeps its form default.
+    /// </summary>
+    public static string FormQueryString(IStrategy strategy)
+    {
+        ArgumentNullException.ThrowIfNull(strategy);
+        var builder = new StringBuilder();
+        Append(builder, StrategyKey, strategy.Id);
+        if (!strategy.SupportedTimeframes.Contains(DefaultTimeframe) && strategy.SupportedTimeframes.Count > 0)
+        {
+            Append(builder, TimeframeKey, FormatTimeframe(strategy.SupportedTimeframes.Order().First()));
         }
 
         return builder.ToString();

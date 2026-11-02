@@ -1,0 +1,114 @@
+@model StrategyCatalogViewModel
+@{
+    ViewData["Title"] = "Strategies";
+}
+
+<h1 class="h3 mb-3">Strategies</h1>
+
+@if (Model.Notice is { } notice)
+{
+    <div class="alert @(notice.IsSuccess ? "alert-success" : "alert-danger")" role="@(notice.IsSuccess ? "status" : "alert")">@notice.Text</div>
+}
+
+@* In-page navigation: plain anchors, no script. Both links stay, even at zero. *@
+<nav class="d-flex flex-wrap gap-2" aria-label="Strategy sections">
+    <a class="btn btn-sm btn-outline-secondary" href="#@StrategyCatalogViewModel.BuiltInAnchor">@Model.BuiltInLinkText</a>
+    <a class="btn btn-sm btn-outline-secondary" href="#@StrategyCatalogViewModel.CustomAnchor">@Model.CustomLinkText</a>
+</nav>
+
+@foreach (var (anchor, title, cards, empty) in new[]
+{
+    (StrategyCatalogViewModel.BuiltInAnchor, "Built-in strategies", Model.BuiltInStrategies, StrategyCatalogViewModel.NoBuiltInStrategies),
+    (StrategyCatalogViewModel.CustomAnchor, "Custom strategies", Model.CustomStrategies, StrategyCatalogViewModel.NoCustomStrategies),
+})
+{
+    <h2 class="h4 mt-4 mb-3" id="@anchor">@title</h2>
+    if (cards.Count == 0)
+    {
+        <p class="text-body-secondary">@empty</p>
+        continue;
+    }
+
+    <div class="d-flex flex-column gap-3">
+        @foreach (var card in cards)
+        {
+            <article class="qb-panel" id="@card.Anchor" aria-labelledby="@card.Anchor-title">
+                <div class="d-flex flex-wrap align-items-start justify-content-between gap-2 mb-2">
+                    <div class="qb-min-0">
+                        <h3 class="h5 mb-1 text-break" id="@card.Anchor-title">@card.Name</h3>
+                        <div class="d-flex flex-wrap gap-1">
+                            <span class="badge text-bg-secondary">@card.CategoryLabel</span>
+                            @foreach (var timeframe in card.Timeframes)
+                            {
+                                <span class="badge text-bg-dark border">@timeframe</span>
+                            }
+                        </div>
+                    </div>
+                    <div class="d-flex flex-wrap gap-2">
+                        <a class="btn btn-primary" href="@card.UseUrl">Use this strategy</a>
+                        @if (card.IsCustom)
+                        {
+                            <span class="d-inline-block" title="@ResultActionsViewModel.ComingSoon">
+                                <a class="btn btn-outline-secondary disabled" href="@card.EditUrl" aria-disabled="true" tabindex="-1">Edit</a>
+                            </span>
+                            <form method="post" action="@card.DeleteUrl" asp-antiforgery="true" data-confirm="@card.DeleteConfirmation">
+                                <button type="submit" class="btn btn-outline-danger">Delete</button>
+                            </form>
+                        }
+                    </div>
+                </div>
+
+                <p class="mb-3">@card.Description</p>
+
+                <dl class="mb-3">
+                    <dt>Idea</dt>
+                    <dd>@card.Documentation.Idea</dd>
+                    <dt>Entry rule</dt>
+                    <dd>@card.Documentation.EntryRule</dd>
+                    <dt>Exit rule</dt>
+                    <dd>@card.Documentation.ExitRule</dd>
+                    <dt>Risks</dt>
+                    <dd class="mb-0">@card.Documentation.Risks</dd>
+                </dl>
+
+                <h4 class="h6">Parameters</h4>
+                @if (card.Parameters.Count == 0)
+                {
+                    <p class="text-body-secondary mb-0">@StrategyCardViewModel.NoParameters</p>
+                }
+                else
+                {
+                    <div class="table-responsive">
+                        <table class="table table-sm mb-0">
+                            <thead>
+                                <tr>
+                                    <th scope="col">Parameter</th>
+                                    <th scope="col">Type</th>
+                                    <th scope="col" class="text-end">Default</th>
+                                    <th scope="col" class="text-end">Min</th>
+                                    <th scope="col" class="text-end">Max</th>
+                                    <th scope="col" class="text-end">Step</th>
+                                    <th scope="col">Description</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var parameter in card.Parameters)
+                                {
+                                    <tr>
+                                        <th scope="row" class="fw-normal text-nowrap">@parameter.Label</th>
+                                        <td>@parameter.Type</td>
+                                        <td class="text-end text-nowrap">@parameter.Default</td>
+                                        <td class="text-end text-nowrap">@parameter.Min</td>
+                                        <td class="text-end text-nowrap">@parameter.Max</td>
+                                        <td class="text-end text-nowrap">@parameter.Step</td>
+                                        <td class="text-body-secondary">@parameter.Description</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </article>
+        }
+    </div>
+}
