@@ -14,8 +14,8 @@ internal sealed record ParameterRow(
     string? Description);
 
 /// <summary>
-/// One card of the strategy catalog (P4-U8), built from IStrategy only. EditUrl and DeleteUrl exist for custom
-/// strategies only. Edit is rendered disabled until the rule builder PR enables it.
+/// One card of the strategy catalog (P4-U8), built from IStrategy only. EditUrl (the rule builder, P4-U9) and
+/// DeleteUrl exist for custom strategies only.
 /// </summary>
 internal sealed record StrategyCardViewModel(
     string Id,
@@ -36,9 +36,18 @@ internal sealed record StrategyCardViewModel(
     public bool IsCustom => DeleteUrl is not null;
 
     /// <summary>Anchor of the card ("strategy-sma-crossover"), linked from the user manual.</summary>
-    public string Anchor => "strategy-" + Id;
+    public string Anchor => AnchorOf(Id);
 
-    public string DeleteConfirmation => $"Delete the strategy \"{Name}\"? This cannot be undone.";
+    public string DeleteConfirmation => ConfirmDeletion(Name);
+
+    /// <summary>Anchor of the card of a strategy, also the target of the redirect after a save (P4-U9).</summary>
+    public static string AnchorOf(string id) => "strategy-" + id;
+
+    /// <summary>"/app/Strategies/Custom/custom-x/Edit": the fixed routes of PART-4 section 5, id escaped.</summary>
+    public static string CustomUrl(string pathBase, string id, string action) =>
+        pathBase + CustomPathPrefix + Uri.EscapeDataString(id) + "/" + action;
+
+    public static string ConfirmDeletion(string name) => $"Delete the strategy \"{name}\"? This cannot be undone.";
 
     /// <param name="pathBase">Request.PathBase of the current request ("" when the app is served at the root).</param>
     public static StrategyCardViewModel Create(IStrategy strategy, string pathBase)
@@ -46,7 +55,6 @@ internal sealed record StrategyCardViewModel(
         ArgumentNullException.ThrowIfNull(strategy);
         ArgumentNullException.ThrowIfNull(pathBase);
 
-        var customPath = pathBase + CustomPathPrefix + Uri.EscapeDataString(strategy.Id);
         var isCustom = StrategyGroups.IsCustom(strategy);
         return new StrategyCardViewModel(
             strategy.Id,
@@ -57,8 +65,8 @@ internal sealed record StrategyCardViewModel(
             strategy.SupportedTimeframes.Order().Select(TimeframeText).ToList(),
             strategy.Parameters.Select(Row).ToList(),
             pathBase + ResultActionsViewModel.EditSettingsPath + "?" + BacktestQuery.FormQueryString(strategy),
-            isCustom ? customPath + "/Edit" : null,
-            isCustom ? customPath + "/Delete" : null);
+            isCustom ? CustomUrl(pathBase, strategy.Id, "Edit") : null,
+            isCustom ? CustomUrl(pathBase, strategy.Id, "Delete") : null);
     }
 
     /// <summary>Readable label of a category: "TrendFollowing" → "Trend following".</summary>

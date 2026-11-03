@@ -23,6 +23,12 @@
 })
 {
     <h2 class="h4 mt-4 mb-3" id="@anchor">@title</h2>
+    if (anchor == StrategyCatalogViewModel.CustomAnchor)
+    {
+        @* Offered with or without custom strategies, so the empty section leads to the rule builder (P4-U9). *@
+        <p><a class="btn btn-primary" href="@Model.NewCustomUrl">New custom strategy</a></p>
+    }
+
     if (cards.Count == 0)
     {
         <p class="text-body-secondary">@empty</p>
@@ -48,9 +54,7 @@
                         <a class="btn btn-primary" href="@card.UseUrl">Use this strategy</a>
                         @if (card.IsCustom)
                         {
-                            <span class="d-inline-block" title="@ResultActionsViewModel.ComingSoon">
-                                <a class="btn btn-outline-secondary disabled" href="@card.EditUrl" aria-disabled="true" tabindex="-1">Edit</a>
-                            </span>
+                            <a class="btn btn-outline-secondary" href="@card.EditUrl">Edit</a>
                             <form method="post" action="@card.DeleteUrl" asp-antiforgery="true" data-confirm="@card.DeleteConfirmation">
                                 <button type="submit" class="btn btn-outline-danger">Delete</button>
                             </form>

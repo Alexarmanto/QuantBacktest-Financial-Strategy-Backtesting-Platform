@@ -1,0 +1,82 @@
+@model ConditionRowViewModel
+@using QuantBacktest.Core.Models
+@{
+    // One condition: left operand, operator, right operand (P4-U9). Each operand field carries data-kinds, the
+    // operand types it belongs to (R3), so rule-builder.js only shows or hides; the server renders the initial state.
+    var periodKinds = RuleBuilderOptions.KindsWhere(RuleBuilderOptions.HasPeriod);
+    var valueKinds = RuleBuilderOptions.KindsWhere(RuleBuilderOptions.HasValue);
+    var stdDevsKinds = RuleBuilderOptions.KindsWhere(RuleBuilderOptions.HasStdDevs);
+
+    void FieldError(string? message)
+    {
+        if (message is not null)
+        {
+            <div class="invalid-feedback">@message</div>
+        }
+    }
+
+    string Invalid(string part) => Model.Error(part) is null ? "" : "is-invalid";
+
+    // async: the <option> elements go through the option tag helper.
+    async Task Operand(string side, string label, OperandInput operand)
+    {
+        var known = RuleBuilderOptions.TryParse<OperandKind>(operand.Kind, out var kind);
+        var kindPart = side + ".Kind";
+        var periodPart = side + ".Period";
+        var valuePart = side + ".Value";
+        var stdDevsPart = side + ".StdDevs";
+        <div class="row g-2" data-operand>
+            <div class="col-12 col-sm-6">
+                <label class="form-label small mb-1" for="@Model.ElementId(kindPart)">@label</label>
+                <select class="form-select @Invalid(kindPart)" id="@Model.ElementId(kindPart)" name="@Model.Name(kindPart)" data-operand-kind>
+                    @foreach (var option in RuleBuilderOptions.Kinds)
+                    {
+                        <option value="@option.Value" selected="@(option.Value == operand.Kind)">@option.Label</option>
+                    }
+                </select>
+                @{ FieldError(Model.Error(kindPart)); }
+            </div>
+            <div class="col-6 col-sm-3" data-kinds="@periodKinds" hidden="@(!(known && RuleBuilderOptions.HasPeriod(kind)))">
+                <label class="form-label small mb-1" for="@Model.ElementId(periodPart)">Period</label>
+                <input class="form-control num @Invalid(periodPart)" type="number" step="any"
+                       id="@Model.ElementId(periodPart)" name="@Model.Name(periodPart)" value="@operand.Period" />
+                @{ FieldError(Model.Error(periodPart)); }
+            </div>
+            <div class="col-12 col-sm-6" data-kinds="@valueKinds" hidden="@(!(known && RuleBuilderOptions.HasValue(kind)))">
+                <label class="form-label small mb-1" for="@Model.ElementId(valuePart)">Value</label>
+                <input class="form-control num @Invalid(valuePart)" type="number" step="any"
+                       id="@Model.ElementId(valuePart)" name="@Model.Name(valuePart)" value="@operand.Value" />
+                @{ FieldError(Model.Error(valuePart)); }
+            </div>
+            <div class="col-6 col-sm-3" data-kinds="@stdDevsKinds" hidden="@(!(known && RuleBuilderOptions.HasStdDevs(kind)))">
+                <label class="form-label small mb-1" for="@Model.ElementId(stdDevsPart)">Std devs</label>
+                <input class="form-control num @Invalid(stdDevsPart)" type="number" step="any" placeholder="2"
+                       id="@Model.ElementId(stdDevsPart)" name="@Model.Name(stdDevsPart)" value="@operand.StdDevs" />
+                @{ FieldError(Model.Error(stdDevsPart)); }
+            </div>
+        </div>
+    }
+}
+
+<fieldset class="qb-condition" data-condition>
+    <legend class="qb-condition-title">Condition <span data-condition-number>@Model.Number</span></legend>
+    <div class="row g-2 align-items-start">
+        <div class="col-12 col-lg-5">
+            @{ await Operand("Left", "Left operand", Model.Input.Left); }
+        </div>
+        <div class="col-12 col-lg-2">
+            <label class="form-label small mb-1" for="@Model.ElementId("Operator")">Operator</label>
+            <select class="form-select @Invalid("Operator")" id="@Model.ElementId("Operator")" name="@Model.Name("Operator")">
+                @foreach (var option in RuleBuilderOptions.Operators)
+                {
+                    <option value="@option.Value" selected="@(option.Value == Model.Input.Operator)">@option.Label</option>
+                }
+            </select>
+            @{ FieldError(Model.Error("Operator")); }
+        </div>
+        <div class="col-12 col-lg-5">
+            @{ await Operand("Right", "Right operand", Model.Input.Right); }
+        </div>
+    </div>
+    <button type="button" class="btn btn-sm btn-outline-danger mt-2" data-remove-condition data-js-only hidden>Remove</button>
+</fieldset>
