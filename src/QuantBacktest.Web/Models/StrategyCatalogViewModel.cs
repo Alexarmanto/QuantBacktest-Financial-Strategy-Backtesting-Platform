@@ -32,11 +32,15 @@ internal sealed record PageNotice(bool IsSuccess, string Text)
     }
 }
 
-/// <summary>The strategy catalog page (P4-U8): built-in cards, then custom cards, in catalog order.</summary>
+/// <summary>
+/// The strategy catalog page (P4-U8): built-in cards, then custom cards, in catalog order. NewCustomUrl opens the
+/// rule builder (P4-U9), offered even when there is no custom strategy yet.
+/// </summary>
 internal sealed record StrategyCatalogViewModel(
     IReadOnlyList<StrategyCardViewModel> BuiltInStrategies,
     IReadOnlyList<StrategyCardViewModel> CustomStrategies,
-    PageNotice? Notice)
+    PageNotice? Notice,
+    string NewCustomUrl)
 {
     public const string NoBuiltInStrategies = "No built-in strategy is available.";
 
@@ -65,6 +69,7 @@ internal sealed record StrategyCatalogViewModel(
         return new StrategyCatalogViewModel(
             builtIn.Select(s => StrategyCardViewModel.Create(s, pathBase)).ToList(),
             custom.Select(s => StrategyCardViewModel.Create(s, pathBase)).ToList(),
-            notice);
+            notice,
+            pathBase + StrategyCardViewModel.CustomPathPrefix + "New");
     }
 }

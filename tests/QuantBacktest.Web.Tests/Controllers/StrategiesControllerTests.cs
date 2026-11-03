@@ -36,7 +36,7 @@ public class StrategiesControllerTests
         public StrategiesController Controller()
         {
             var httpContext = new DefaultHttpContext();
-            return new StrategiesController(Catalog, Store, NullLogger<StrategiesController>.Instance)
+            return new StrategiesController(Catalog, Store, new FakeCustomStrategyFactory(), NullLogger<StrategiesController>.Instance)
             {
                 ControllerContext = new ControllerContext { HttpContext = httpContext },
                 TempData = new TempDataDictionary(httpContext, TempData),
@@ -93,7 +93,7 @@ public class StrategiesControllerTests
             new StubStrategy { Id = "custom-a", Category = StrategyCategory.Custom },
             new StubStrategy { Id = "a-builtin" });
         var httpContext = new DefaultHttpContext();
-        var controller = new StrategiesController(catalog, new FakeCustomStrategyStore(), NullLogger<StrategiesController>.Instance)
+        var controller = new StrategiesController(catalog, new FakeCustomStrategyStore(), new FakeCustomStrategyFactory(), NullLogger<StrategiesController>.Instance)
         {
             ControllerContext = new ControllerContext { HttpContext = httpContext },
             TempData = new TempDataDictionary(httpContext, new InMemoryTempDataProvider()),

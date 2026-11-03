@@ -13,13 +13,6 @@
     }
 }
 
-@functions {
-    // One execution setting in URL units (percent) with the range of the contract (P4-U1). ExclusiveMin: ]min, max],
-    // which HTML cannot express, so backtest-form.js checks it.
-    private sealed record NumberSetting(
-        string Key, string Label, string Min, string? Max, string Help, bool ExclusiveMin = false, bool Required = false);
-}
-
 <h1 class="h3 mb-3">Backtest</h1>
 
 @if (Model.Alert is { } alert)
@@ -148,24 +141,12 @@
             @{ FieldError(Model.Error(BacktestQuery.ToKey)); }
         </div>
 
-        @foreach (var setting in new[]
-        {
-            new NumberSetting(BacktestQuery.CapitalKey, "Initial capital ($)", "0", null, "Greater than 0.", ExclusiveMin: true, Required: true),
-            new NumberSetting(BacktestQuery.FeeKey, "Fee (%)", "0", BacktestQuery.FormatNumber(BacktestQuery.MaxFeePercent), $"0 to {BacktestQuery.FormatNumber(BacktestQuery.MaxFeePercent)}%, per fill."),
-            new NumberSetting(BacktestQuery.SlippageKey, "Slippage (%)", "0", BacktestQuery.FormatNumber(BacktestQuery.MaxSlippagePercent), $"0 to {BacktestQuery.FormatNumber(BacktestQuery.MaxSlippagePercent)}%."),
-            new NumberSetting(BacktestQuery.RiskFreeKey, "Risk-free rate (%/year)", "0", BacktestQuery.FormatNumber(BacktestQuery.MaxRiskFreePercent), $"0 to {BacktestQuery.FormatNumber(BacktestQuery.MaxRiskFreePercent)}%."),
-            new NumberSetting(BacktestQuery.StopLossKey, "Stop-loss (%)", "0", BacktestQuery.FormatNumber(BacktestQuery.MaxStopLossPercent), $"Up to {BacktestQuery.FormatNumber(BacktestQuery.MaxStopLossPercent)}%. Empty = off.", ExclusiveMin: true),
-            new NumberSetting(BacktestQuery.TakeProfitKey, "Take-profit (%)", "0", BacktestQuery.FormatNumber(BacktestQuery.MaxTakeProfitPercent), $"Up to {BacktestQuery.FormatNumber(BacktestQuery.MaxTakeProfitPercent)}%. Empty = off.", ExclusiveMin: true),
-            new NumberSetting(BacktestQuery.TrailingStopKey, "Trailing stop (%)", "0", BacktestQuery.FormatNumber(BacktestQuery.MaxTrailingStopPercent), $"Up to {BacktestQuery.FormatNumber(BacktestQuery.MaxTrailingStopPercent)}%. Empty = off.", ExclusiveMin: true),
-        })
+        @foreach (var setting in NumberSetting.All)
         {
             var error = Model.Error(setting.Key);
             <div class="col-6 col-md-3">
                 <label class="form-label" for="@setting.Key">@setting.Label</label>
-                <input class="form-control num @(error is null ? "" : "is-invalid")" type="number" step="any"
-                       id="@setting.Key" name="@setting.Key" value="@Model.Value(setting.Key)"
-                       min="@(setting.ExclusiveMin ? null : setting.Min)" max="@setting.Max"
-                       data-exclusive-min="@(setting.ExclusiveMin ? setting.Min : null)" required="@setting.Required" />
+                @setting.Input(Model.Value(setting.Key), error is not null)
                 <div class="form-text">@setting.Help</div>
                 @{ FieldError(error); }
             </div>

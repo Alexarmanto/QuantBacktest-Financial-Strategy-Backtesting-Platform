@@ -38,10 +38,12 @@ function initForm(form) {
         from.setCustomValidity(reversed ? 'The start date must be on or before the end date.' : '');
     }
 
-    // ]min, max] ranges (capital, stop-loss, take-profit, trailing stop): HTML min is inclusive.
+    // ]min, max] ranges (capital, stop-loss, take-profit, trailing stop): HTML min is inclusive. The server only
+    // writes data-exclusive-min on those fields (NumberSetting); an empty bound is never a check.
     function syncExclusiveMin(input) {
-        const tooLow = input.value !== '' && Number(input.value) <= Number(input.dataset.exclusiveMin);
-        input.setCustomValidity(tooLow ? `Must be greater than ${input.dataset.exclusiveMin}.` : '');
+        const bound = input.dataset.exclusiveMin;
+        const tooLow = bound !== '' && input.value !== '' && Number(input.value) <= Number(bound);
+        input.setCustomValidity(tooLow ? `Must be greater than ${bound}.` : '');
     }
 
     function setBusy(busy) {
