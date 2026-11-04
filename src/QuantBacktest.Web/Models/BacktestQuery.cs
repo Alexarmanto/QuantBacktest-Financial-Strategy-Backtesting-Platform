@@ -46,6 +46,13 @@ internal sealed record BacktestQuery(
     public const string RiskFreeKey = "rf";
     public const string ParameterPrefix = "p.";
 
+    // Monte Carlo (P4-X4). sims and seed belong to the Monte Carlo page and to the PDF; mc=true only to the PDF
+    // URL (PART-4 section 5, "Report.pdf?… &mc=true … with sims and seed").
+    public const string SimulationsKey = "sims";
+    public const string SeedKey = "seed";
+    public const string MonteCarloKey = "mc";
+    public const string MonteCarloFlag = "true";
+
     public const string DateFormat = "yyyy-MM-dd";
 
     // Defaults and limits come from Conventions (fractions), shown here in URL units (percent).
@@ -63,6 +70,13 @@ internal sealed record BacktestQuery(
     public const decimal MaxTakeProfitPercent = Conventions.MaxTakeProfitFraction * 100m;
     public const decimal MaxTrailingStopPercent = Conventions.MaxTrailingStopFraction * 100m;
     public static readonly decimal MaxRiskFreePercent = (decimal)Conventions.MaxRiskFreeRate * 100m;
+
+    // MC1: Simulations in [100, MaxMonteCarloSimulations]. The lower bound 100 is only written in docs/CONTRACT.md
+    // (MC1), not in Conventions: it is spelled once here. The seed has no range in the contract: any Int32.
+    public const int MinMonteCarloSimulations = 100;
+    public const int MaxMonteCarloSimulations = Conventions.MaxMonteCarloSimulations;
+    public const int DefaultMonteCarloSimulations = Conventions.DefaultMonteCarloSimulations;
+    public const int DefaultMonteCarloSeed = Conventions.DefaultMonteCarloSeed;
 
     /// <summary>Accepted spellings of tf (case-insensitive). An explicit table, so "0" or "1" are never read as enum values.</summary>
     private static readonly IReadOnlyDictionary<string, Timeframe> Timeframes =
@@ -160,6 +174,44 @@ internal sealed record BacktestQuery(
     }
 
     /// <summary>
+    /// Reads sims and seed of the Monte Carlo page (P4-X4). Same tolerance as <see cref="TryParse"/>: an empty or
+    /// absent value takes the default of Conventions; every other parameter (mc included) is ignored here.
+    /// Never throws on user input. MC1 range for sims; the seed is any whole Int32 (no range in the contract).
+    /// </summary>
+    public static bool TryParseMonteCarlo(
+        IQueryCollection query,
+        [NotNullWhen(true)] out MonteCarloRequest? result,
+        out IReadOnlyList<QueryFieldError> errors)
+    {
+        ArgumentNullException.ThrowIfNull(query);
+        var reader = new Reader(query);
+
+        var simulationsMessage =
+            $"Simulations must be a whole number between {FormatInteger(MinMonteCarloSimulations)} and {FormatInteger(MaxMonteCarloSimulations)}.";
+        var simulations = reader.Integer(SimulationsKey, "Simulations", simulationsMessage) ?? DefaultMonteCarloSimulations;
+        if (simulations is < MinMonteCarloSimulations or > MaxMonteCarloSimulations)
+        {
+            reader.Error(SimulationsKey, simulationsMessage);
+        }
+
+        var seed = reader.Integer(
+            SeedKey,
+            "Seed",
+            $"Seed must be a whole number between {FormatInteger(int.MinValue)} and {FormatInteger(int.MaxValue)}.")
+            ?? DefaultMonteCarloSeed;
+
+        errors = reader.Errors;
+        if (errors.Count > 0)
+        {
+            result = null;
+            return false;
+        }
+
+        result = new MonteCarloRequest(simulations, seed);
+        return true;
+    }
+
+    /// <summary>
     /// Checks the p.* values against the definitions of the selected strategy (from IStrategyCatalog): known key,
     /// value in [Min, Max], whole number for an Integer parameter. Absent keys are fine: the strategy uses its
     /// default (docs/CONTRACT.md section 3). IBacktestService stays the final authority.
@@ -217,32 +269,75 @@ internal sealed record BacktestQuery(
         DecodePairs(received.Value).SequenceEqual(DecodePairs(ToQueryString()));
 
     /// <summary>
+    /// Monte Carlo page (P4-X4): true when the received query string is exactly
+    /// <see cref="ToQueryString(MonteCarloRequest, bool)"/> once decoded. A received mc, an absent sims or seed, or
+    /// another order is not canonical, so the page redirects once.
+    /// </summary>
+    public bool IsCanonical(QueryString received, MonteCarloRequest monteCarlo) =>
+        DecodePairs(received.Value).SequenceEqual(DecodePairs(ToQueryString(monteCarlo)));
+
+    /// <summary>
     /// Canonical query string, without the leading "?": symbol, tf, strategy, from, to, capital, fee, slip, sl, tp,
     /// ts, rf, then p.* sorted by key (ordinal). Optional fields are written only when set; numbers in their shortest
     /// invariant form. Two queries with the same settings always give the same string.
     /// </summary>
-    public string ToQueryString()
+    public string ToQueryString() => Encode(ToQueryPairs());
+
+    /// <summary>
+    /// The canonical query string of <see cref="ToQueryString()"/> followed by the Monte Carlo settings: sims, seed for
+    /// the Monte Carlo page; mc=true, sims, seed for the PDF with its Monte Carlo section (forReport, PART-4 section 5).
+    /// </summary>
+    public string ToQueryString(MonteCarloRequest monteCarlo, bool forReport = false)
     {
-        var builder = new StringBuilder();
-        Append(builder, SymbolKey, Symbol);
-        Append(builder, TimeframeKey, FormatTimeframe(Timeframe));
-        Append(builder, StrategyKey, StrategyId);
-        Append(builder, FromKey, From?.ToString(DateFormat, CultureInfo.InvariantCulture));
-        Append(builder, ToKey, To?.ToString(DateFormat, CultureInfo.InvariantCulture));
-        Append(builder, CapitalKey, FormatNumber(Capital));
-        Append(builder, FeeKey, FormatNumber(FeePercent));
-        Append(builder, SlippageKey, FormatNumber(SlippagePercent));
-        Append(builder, StopLossKey, FormatNumber(StopLossPercent));
-        Append(builder, TakeProfitKey, FormatNumber(TakeProfitPercent));
-        Append(builder, TrailingStopKey, FormatNumber(TrailingStopPercent));
-        Append(builder, RiskFreeKey, FormatNumber(RiskFreePercent));
-        foreach (var (key, value) in Parameters.OrderBy(p => p.Key, StringComparer.Ordinal))
+        ArgumentNullException.ThrowIfNull(monteCarlo);
+        var pairs = ToQueryPairs().ToList();
+        if (forReport)
         {
-            Append(builder, ParameterPrefix + key, FormatNumber(value));
+            pairs.Add(new(MonteCarloKey, MonteCarloFlag));
         }
 
-        return builder.ToString();
+        pairs.Add(new(SimulationsKey, FormatInteger(monteCarlo.Simulations)));
+        pairs.Add(new(SeedKey, FormatInteger(monteCarlo.Seed)));
+        return Encode(pairs);
     }
+
+    /// <summary>
+    /// The decoded name / value pairs of <see cref="ToQueryString()"/>, in the same canonical order. A GET form that
+    /// must keep these settings (Monte Carlo form) writes them as hidden fields, in this order, before its own fields.
+    /// </summary>
+    public IReadOnlyList<KeyValuePair<string, string>> ToQueryPairs()
+    {
+        var pairs = new List<KeyValuePair<string, string>>();
+        void Add(string key, string? value)
+        {
+            if (value is not null)
+            {
+                pairs.Add(new(key, value));
+            }
+        }
+
+        Add(SymbolKey, Symbol);
+        Add(TimeframeKey, FormatTimeframe(Timeframe));
+        Add(StrategyKey, StrategyId);
+        Add(FromKey, From?.ToString(DateFormat, CultureInfo.InvariantCulture));
+        Add(ToKey, To?.ToString(DateFormat, CultureInfo.InvariantCulture));
+        Add(CapitalKey, FormatNumber(Capital));
+        Add(FeeKey, FormatNumber(FeePercent));
+        Add(SlippageKey, FormatNumber(SlippagePercent));
+        Add(StopLossKey, FormatNumber(StopLossPercent));
+        Add(TakeProfitKey, FormatNumber(TakeProfitPercent));
+        Add(TrailingStopKey, FormatNumber(TrailingStopPercent));
+        Add(RiskFreeKey, FormatNumber(RiskFreePercent));
+        foreach (var (key, value) in Parameters.OrderBy(p => p.Key, StringComparer.Ordinal))
+        {
+            Add(ParameterPrefix + key, FormatNumber(value));
+        }
+
+        return pairs;
+    }
+
+    /// <summary>Invariant whole number, no thousands separator: 10000 → "10000", -42 → "-42".</summary>
+    public static string FormatInteger(int value) => value.ToString(CultureInfo.InvariantCulture);
 
     /// <summary>
     /// Query string, without the leading "?", of a backtest form that preselects one strategy ("Use this strategy",
@@ -332,6 +427,17 @@ internal sealed record BacktestQuery(
         builder.Append(Uri.EscapeDataString(key)).Append('=').Append(Uri.EscapeDataString(value));
     }
 
+    private static string Encode(IEnumerable<KeyValuePair<string, string>> pairs)
+    {
+        var builder = new StringBuilder();
+        foreach (var (key, value) in pairs)
+        {
+            Append(builder, key, value);
+        }
+
+        return builder.ToString();
+    }
+
     /// <summary>Reads raw values and collects errors in field order, so one bad field never hides another.</summary>
     private sealed class Reader(IQueryCollection query)
     {
@@ -378,6 +484,24 @@ internal sealed record BacktestQuery(
             }
 
             Error(key, $"{label} must be a number, with '.' as the decimal separator.");
+            return null;
+        }
+
+        /// <summary>Whole Int32 in plain notation: "1000", "-42". "1.5", "1e3", "1,000" or an Int32 overflow add invalidMessage.</summary>
+        public int? Integer(string key, string label, string invalidMessage)
+        {
+            var text = Text(key, label);
+            if (text is null)
+            {
+                return null;
+            }
+
+            if (int.TryParse(text, NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out var number))
+            {
+                return number;
+            }
+
+            Error(key, invalidMessage);
             return null;
         }
 

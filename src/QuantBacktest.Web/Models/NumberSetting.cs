@@ -21,8 +21,13 @@ internal sealed record NumberSetting(
     string? Max,
     string? ExclusiveMin,
     bool Required,
-    string Help)
+    string Help,
+    string Step = NumberSetting.AnyStep)
 {
+    /// <summary>HTML step of a free decimal; a whole-number setting (Monte Carlo sims, seed) uses "1".</summary>
+    public const string AnyStep = "any";
+    public const string WholeStep = "1";
+
     private static readonly string Zero = BacktestQuery.FormatNumber(0m)!;
 
     /// <summary>Capital, fee, slippage, risk-free rate, then the optional protective exits, in display order.</summary>
@@ -43,7 +48,7 @@ internal sealed record NumberSetting(
         var input = new TagBuilder("input") { TagRenderMode = TagRenderMode.SelfClosing };
         input.AddCssClass(invalid ? "form-control num is-invalid" : "form-control num");
         input.Attributes["type"] = "number";
-        input.Attributes["step"] = "any";
+        input.Attributes["step"] = Step;
         input.Attributes["id"] = Key;
         input.Attributes["name"] = Key;
         input.Attributes["value"] = value;

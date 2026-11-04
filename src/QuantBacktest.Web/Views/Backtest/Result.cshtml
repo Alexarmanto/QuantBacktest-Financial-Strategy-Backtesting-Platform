@@ -40,9 +40,18 @@
     <span class="d-inline-block" title="@ResultActionsViewModel.ComingSoon">
         <a class="btn btn-outline-secondary disabled" href="@actions.TradesCsvUrl" aria-disabled="true" tabindex="-1">Download trades CSV</a>
     </span>
-    <span class="d-inline-block" title="@ResultActionsViewModel.ComingSoon">
-        <a class="btn btn-outline-secondary disabled" href="@actions.MonteCarloUrl" aria-disabled="true" tabindex="-1">Run Monte Carlo</a>
-    </span>
+    @if (actions.MonteCarloUrl is not null)
+    {
+        <a class="btn btn-outline-primary" href="@actions.MonteCarloUrl">Run Monte Carlo</a>
+    }
+    else
+    {
+        @* MC1: below 5 trades the simulation is refused; the reason stays readable on touch screens (no tooltip). *@
+        <span class="d-inline-flex align-items-center gap-2">
+            <a class="btn btn-outline-secondary disabled" aria-disabled="true" tabindex="-1">Run Monte Carlo</a>
+            <span class="small text-body-secondary">@ResultActionsViewModel.MonteCarloNeedsTrades</span>
+        </span>
+    }
     @if (actions.OptimizeUrl is not null)
     {
         <span class="d-inline-block" title="@ResultActionsViewModel.ComingSoon">
