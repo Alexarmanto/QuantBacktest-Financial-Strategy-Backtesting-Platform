@@ -2,6 +2,8 @@
 // prepared by ResultChartsViewModel in #result-charts-data (drawdowns already negative and in percent, reference lines
 // deduplicated, markers paired with their date and fill price): this module only draws and formats, no finance.
 // Chart.js is the UMD build loaded just before this module (globalThis.Chart).
+// The formatters, options() and readTheme() are exported for the other chart modules (monte-carlo-charts.js); importing
+// this module draws nothing on a page without #result-charts-data.
 
 // Formats of DisplayFormat (P4-U14), en-US: $10,120.50, -$10.50, -23%, -1.39%. A value rounded to zero has no sign.
 const money = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', signDisplay: 'negative' });
@@ -10,10 +12,10 @@ const percentValue = new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, 
 // Oscillators mix scales (RSI 54.32, ROC fraction 0.01234, MACD 1.235): significant digits, not fixed decimals.
 const number = new Intl.NumberFormat('en-US', { maximumSignificantDigits: 4, signDisplay: 'negative' });
 
-const formatMoney = value => money.format(value);
-const formatPercentTick = value => `${percentTick.format(value)}%`;
-const formatPercent = value => `${percentValue.format(value)}%`;
-const formatNumber = value => number.format(value);
+export const formatMoney = value => money.format(value);
+export const formatPercentTick = value => `${percentTick.format(value)}%`;
+export const formatPercent = value => `${percentValue.format(value)}%`;
+export const formatNumber = value => number.format(value);
 
 // Date axis: about one tick per 90 px of chart width, between 3 and 8, so labels never overlap (360 px to full width).
 const pixelsPerTick = 90;
@@ -172,7 +174,7 @@ function spansMoreThanTwoYears(dates) {
     return dates[dates.length - 1] > twoYearsLater;
 }
 
-function options(theme, canvas, formatValue, formatTick, yBounds = {}) {
+export function options(theme, canvas, formatValue, formatTick, yBounds = {}) {
     return {
         responsive: true,
         maintainAspectRatio: false,
@@ -228,7 +230,7 @@ function options(theme, canvas, formatValue, formatTick, yBounds = {}) {
     };
 }
 
-function readTheme() {
+export function readTheme() {
     const style = getComputedStyle(document.documentElement);
     const read = name => style.getPropertyValue(name).trim();
     return {

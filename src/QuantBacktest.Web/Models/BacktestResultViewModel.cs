@@ -46,11 +46,11 @@ internal sealed record BacktestResultViewModel(
         ArgumentNullException.ThrowIfNull(permalink);
 
         return new BacktestResultViewModel(
-            CreateHeader(result, strategy, permalink),
+            ResultHeaderViewModel.Create(result, strategy, permalink),
             CreateMetricRows(result.Metrics, result.BenchmarkMetrics, result.Request.Timeframe),
             ResultChartsViewModel.Create(result),
             ResultTradesViewModel.Create(result.Trades),
-            ResultActionsViewModel.Create(query, strategy, pathBase));
+            ResultActionsViewModel.Create(query, strategy, result.Trades.Count, pathBase));
     }
 
     /// <summary>M4: the label of AverageReturnPerPeriod follows the timeframe.</summary>
@@ -60,46 +60,6 @@ internal sealed record BacktestResultViewModel(
         Timeframe.Weekly => "Average weekly return",
         _ => throw new ArgumentOutOfRangeException(nameof(timeframe), timeframe, "Unknown timeframe."),
     };
-
-    private static ResultHeaderViewModel CreateHeader(BacktestResult result, IStrategy strategy, string permalink)
-    {
-        var request = result.Request;
-        var execution = request.Execution;
-
-        // Actual period: first and last bar of the tested period (BacktestResult.Bars).
-        var period = result.Bars.Count == 0
-            ? DisplayFormat.NotAvailable
-            : $"{FormatDate(result.Bars[0].Date)} to {FormatDate(result.Bars[^1].Date)}";
-
-        var settings = new List<SettingRow>
-        {
-            new("Initial capital", DisplayFormat.Money(execution.InitialCapital)),
-            new("Fee", DisplayFormat.Percent((double)execution.FeeRate)),
-            new("Slippage", DisplayFormat.Percent((double)execution.SlippageRate)),
-            new("Stop-loss", FormatOptional(execution.StopLossFraction)),
-            new("Take-profit", FormatOptional(execution.TakeProfitFraction)),
-            new("Trailing stop", FormatOptional(execution.TrailingStopFraction)),
-            new("Risk-free rate", DisplayFormat.Percent(execution.RiskFreeRate)),
-        };
-
-        // Values sent with the request; a key the request did not carry runs with its catalog default.
-        var parameters = strategy.Parameters
-            .Select(definition => new SettingRow(
-                definition.Label,
-                BacktestQuery.FormatNumber(request.Parameters.TryGetValue(definition.Key, out var value) ? value : definition.DefaultValue)))
-            .ToList();
-
-        return new ResultHeaderViewModel(
-            request.Symbol,
-            result.StrategyName,
-            request.Timeframe.ToString(),
-            period,
-            settings,
-            parameters,
-            permalink,
-            result.PricesAdjusted ? null : ResultHeaderViewModel.UnadjustedPricesWarning,
-            strategy.Documentation);
-    }
 
     /// <summary>The 13 fields of PerformanceMetrics, in the order of the record (M1 to M12). Only returns are coloured.</summary>
     private static List<MetricRow> CreateMetricRows(PerformanceMetrics strategy, PerformanceMetrics benchmark, Timeframe timeframe) =>
@@ -122,9 +82,5 @@ internal sealed record BacktestResultViewModel(
     private static MetricRow Return(string label, double strategy, double benchmark) =>
         new(label, DisplayFormat.Percent(strategy), DisplayFormat.Percent(benchmark), ValueTone.Of(strategy), ValueTone.Of(benchmark));
 
-    private static string FormatDate(DateOnly date) => date.ToString(BacktestQuery.DateFormat, CultureInfo.InvariantCulture);
-
     private static string FormatCount(int count) => count.ToString(CultureInfo.InvariantCulture);
-
-    private static string FormatOptional(decimal? fraction) => fraction is { } value ? DisplayFormat.Percent((double)value) : Disabled;
 }

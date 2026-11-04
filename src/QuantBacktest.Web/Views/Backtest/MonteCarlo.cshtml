@@ -1,0 +1,184 @@
+@model MonteCarloViewModel
+@{
+    var header = Model.Header;
+    var results = Model.Results;
+    ViewData["Title"] = $"Monte Carlo · {Model.Symbol} · {Model.StrategyName}";
+}
+
+<div class="d-flex flex-wrap align-items-start justify-content-between gap-2 mb-3">
+    <div class="qb-min-0">
+        <h1 class="h3 mb-1 text-break">Monte Carlo · @Model.Symbol · @Model.StrategyName</h1>
+        <p class="text-body-secondary mb-0">
+            @Model.Timeframe · @(header is null ? MonteCarloViewModel.NotRunMessage : header.Period)
+        </p>
+    </div>
+    @if (header is not null)
+    {
+        <button type="button" class="btn btn-outline-primary" data-copy-link="@header.Permalink"
+                aria-controls="permalink-fallback">Copy link</button>
+    }
+</div>
+
+@if (header is not null)
+{
+    @* Shown by backtest-form.js when the clipboard is unavailable (non-secure context). *@
+    <div class="mb-3" id="permalink-fallback" data-copy-link-fallback hidden>
+        <label class="form-label small text-body-secondary" for="permalink-input">Copy this link:</label>
+        <input class="form-control form-control-sm" id="permalink-input" type="text" readonly value="@header.Permalink" />
+    </div>
+
+    @if (header.UnadjustedWarning is not null)
+    {
+        <div class="alert alert-warning" role="alert">@header.UnadjustedWarning</div>
+    }
+}
+
+<nav class="d-flex flex-wrap gap-2 mb-4" aria-label="Monte Carlo actions">
+    <a class="btn btn-primary" href="@Model.ResultUrl">Back to result</a>
+    @if (results is not null)
+    {
+        <span class="d-inline-block" title="@ResultActionsViewModel.ComingSoon">
+            <a class="btn btn-outline-secondary disabled" href="@results.PdfUrl" aria-disabled="true" tabindex="-1">Download PDF with Monte Carlo</a>
+        </span>
+    }
+</nav>
+
+@if (Model.Alert is not null)
+{
+    <div class="alert alert-danger" role="alert">@Model.Alert.Message</div>
+}
+
+<section class="qb-panel mb-3">
+    <h2 class="h5">Settings</h2>
+    <form method="get" action="@Model.Form.Action" class="row g-3 align-items-start">
+        @* Canonical backtest settings first, then sims and seed: the submitted URL is already canonical. *@
+        @foreach (var pair in Model.Form.Hidden)
+        {
+            <input type="hidden" name="@pair.Key" value="@pair.Value" />
+        }
+        @foreach (var field in Model.Form.Fields)
+        {
+            <div class="col-12 col-sm-6 col-lg-4">
+                <label class="form-label" for="@field.Setting.Key">@field.Setting.Label</label>
+                @field.Setting.Input(field.Value, field.Error is not null)
+                @if (field.Error is not null)
+                {
+                    <div class="invalid-feedback d-block">@field.Error</div>
+                }
+                else
+                {
+                    <div class="form-text">@field.Setting.Help</div>
+                }
+            </div>
+        }
+        <div class="col-12 col-lg-4 align-self-lg-end">
+            <button type="submit" class="btn btn-primary">Run simulations</button>
+        </div>
+    </form>
+</section>
+
+@if (results is not null)
+{
+    var charts = results.Charts;
+
+    <p class="text-body-secondary">@MonteCarloViewModel.MethodText</p>
+
+    <div class="row g-3">
+        <div class="col-12 col-lg-5">
+            <section class="qb-panel h-100">
+                <h2 class="h5">Summary</h2>
+                <dl class="row mb-0">
+                    @foreach (var row in results.Summary)
+                    {
+                        <dt class="col-7 fw-normal text-body-secondary">@row.Label</dt>
+                        <dd class="col-5 num mb-1 text-nowrap @row.Tone">@row.Value</dd>
+                    }
+                </dl>
+            </section>
+        </div>
+
+        <div class="col-12 col-lg-7">
+            <section class="qb-panel h-100">
+                <h2 class="h5">Percentiles</h2>
+                <div class="table-responsive">
+                    <table class="table table-sm mb-0">
+                        <thead>
+                            <tr>
+                                <th scope="col">Percentile</th>
+                                <th scope="col" class="num text-nowrap">@MonteCarloChartsViewModel.FinalReturnTitle</th>
+                                <th scope="col" class="num text-nowrap">@MonteCarloChartsViewModel.MaxDrawdownTitle</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var row in results.Percentiles)
+                            {
+                                <tr>
+                                    <th scope="row" class="fw-normal">@row.Label</th>
+                                    <td class="num text-nowrap @row.FinalReturnTone">@row.FinalReturn</td>
+                                    <td class="num text-nowrap">@row.MaxDrawdown</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
+
+        <div class="col-12">
+            <div class="alert alert-info mb-0" role="note">@MonteCarloViewModel.Mc7Warning</div>
+        </div>
+
+        <div class="col-12">
+            <section class="qb-panel">
+                <h2 class="h5">Distributions</h2>
+                <noscript>
+                    <p class="text-body-secondary">JavaScript is off: the histograms are not drawn. The tables below list the same bins.</p>
+                </noscript>
+
+                @foreach (var histogram in new[] { charts.FinalReturn, charts.MaxDrawdown })
+                {
+                    <h3 class="h6">@histogram.Title</h3>
+                    <div class="qb-chart mb-2">
+                        <canvas id="@histogram.CanvasId" role="img" aria-label="@histogram.Summary"></canvas>
+                    </div>
+                    <p class="small text-body-secondary mb-2">@histogram.Reading</p>
+                    <details class="mb-4">
+                        <summary class="small text-body-secondary">Bins of the @histogram.Title.ToLowerInvariant() histogram</summary>
+                        <div class="table-responsive mt-2">
+                            <table class="table table-sm mb-0">
+                                <thead>
+                                    <tr>
+                                        <th scope="col">Range</th>
+                                        <th scope="col" class="num">@MonteCarloChartsViewModel.CountLabel</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var row in histogram.Rows)
+                                    {
+                                        <tr class="@(row.ContainsActual ? "table-active" : null)">
+                                            <td class="text-nowrap">@row.Range@(row.ContainsActual ? " (actual)" : null)</td>
+                                            <td class="num text-nowrap">@row.Count</td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    </details>
+                }
+
+                @* The only inline script allowed (P4-U16): data, never code. The serializer escapes < > &. *@
+                <script type="application/json" id="@MonteCarloChartsViewModel.DataId">@Html.Raw(charts.Json)</script>
+            </section>
+        </div>
+    </div>
+}
+
+@section Scripts {
+    <script type="module" src="~/js/backtest-form.js" asp-append-version="true"></script>
+    @if (results is not null)
+    {
+        @* Chart.js ships as UMD only: a classic script defines globalThis.Chart before the (deferred) module runs. *@
+        <script src="~/lib/chart.js/chart.umd.min.js"></script>
+        <script type="module" src="~/js/monte-carlo-charts.js" asp-append-version="true"></script>
+    }
+}
