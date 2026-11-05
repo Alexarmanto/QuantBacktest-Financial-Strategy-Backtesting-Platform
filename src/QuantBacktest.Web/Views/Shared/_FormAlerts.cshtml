@@ -1,0 +1,32 @@
+@model IFormFields
+@* General alert of a refused request (P4-U12) and the summary of the field errors. Shared by the backtest and comparator forms. *@
+@if (Model.Alert is { } alert)
+{
+    <div class="alert alert-danger" role="alert">
+        <p class="mb-0">@alert.Message</p>
+        @if (alert.Hint is not null)
+        {
+            <p class="mb-0 mt-2">@alert.Hint</p>
+        }
+        @if (alert.Command is not null)
+        {
+            <pre class="qb-command mb-0 mt-2"><code>@alert.Command</code></pre>
+        }
+    </div>
+}
+
+@if (Model.HasErrors)
+{
+    <div class="alert alert-warning" role="alert">
+        <p class="mb-0">Please correct the highlighted fields.</p>
+        @if (Model.OtherErrors.Count > 0)
+        {
+            <ul class="mb-0 mt-2">
+                @foreach (var message in Model.OtherErrors)
+                {
+                    <li>@message</li>
+                }
+            </ul>
+        }
+    </div>
+}

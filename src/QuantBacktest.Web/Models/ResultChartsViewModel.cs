@@ -62,7 +62,7 @@ internal sealed record ResultChartsViewModel(
     /// camelCase, and the default encoder: it escapes &lt; &gt; &amp; so a custom strategy label containing
     /// "&lt;/script&gt;" cannot close the script element. The writer always uses invariant numbers.
     /// </summary>
-    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
+    internal static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
     public static ResultChartsViewModel Create(BacktestResult result)
     {

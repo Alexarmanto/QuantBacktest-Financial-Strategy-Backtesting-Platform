@@ -46,6 +46,21 @@ internal sealed record BacktestQuery(
     public const string RiskFreeKey = "rf";
     public const string ParameterPrefix = "p.";
 
+    // Comparator (P4-X1, C1): strategies=id1,id2,… replaces strategy; ids keep the order of the URL.
+    public const string StrategiesKey = "strategies";
+    public const char StrategiesSeparator = ',';
+
+    // C1: "de 2 à Conventions.MaxComparedStrategies stratégies". The lower bound 2 is only written in docs/CONTRACT.md
+    // (C1), not in Conventions: it is spelled once here.
+    public const int MinComparedStrategies = 2;
+    public const int MaxComparedStrategies = Conventions.MaxComparedStrategies;
+
+    public static readonly string TooFewStrategiesMessage =
+        $"Select at least {FormatInteger(MinComparedStrategies)} strategies to compare.";
+
+    public static readonly string TooManyStrategiesMessage =
+        $"Select at most {FormatInteger(MaxComparedStrategies)} strategies to compare.";
+
     // Monte Carlo (P4-X4). sims and seed belong to the Monte Carlo page and to the PDF; mc=true only to the PDF
     // URL (PART-4 section 5, "Report.pdf?… &mc=true … with sims and seed").
     public const string SimulationsKey = "sims";
@@ -105,6 +120,117 @@ internal sealed record BacktestQuery(
         ArgumentNullException.ThrowIfNull(query);
         var reader = new Reader(query);
 
+        var parsed = ReadSettings(
+            reader,
+            r =>
+            {
+                var strategyId = r.Text(StrategyKey, "Strategy");
+                if (strategyId is null)
+                {
+                    r.ErrorIfNone(StrategyKey, "Strategy is required.");
+                }
+
+                return strategyId;
+            },
+            readParameters: true);
+
+        errors = reader.Errors;
+        if (errors.Count > 0)
+        {
+            result = null;
+            return false;
+        }
+
+        result = parsed;
+        return true;
+    }
+
+    /// <summary>
+    /// Reads the URL of the comparator (P4-X1, C1): the settings of <see cref="TryParse"/>, read by the same code, with
+    /// strategies=id1,id2,… in place of strategy. strategies may also be repeated (a GET form sends one pair per checked
+    /// box): the values are merged in the order received, split on ',', trimmed; empty items are ignored. A duplicate,
+    /// fewer than <see cref="MinComparedStrategies"/> or more than Conventions.MaxComparedStrategies ids are field
+    /// errors. strategy, p.*, sims, seed, mc and unknown parameters are ignored: each strategy runs with its defaults.
+    /// Whether an id exists is not checked here (the catalog is not known). Never throws on user input.
+    /// </summary>
+    public static bool TryParseComparison(
+        IQueryCollection query,
+        [NotNullWhen(true)] out ComparisonQuery? result,
+        out IReadOnlyList<QueryFieldError> errors)
+    {
+        ArgumentNullException.ThrowIfNull(query);
+        var reader = new Reader(query);
+
+        IReadOnlyList<string> strategyIds = [];
+        var settings = ReadSettings(
+            reader,
+            r =>
+            {
+                strategyIds = ReadStrategyIds(query);
+                var duplicates = strategyIds
+                    .GroupBy(id => id, StringComparer.Ordinal)
+                    .Where(group => group.Count() > 1)
+                    .Select(group => group.Key)
+                    .ToList();
+                if (duplicates.Count > 0)
+                {
+                    foreach (var duplicate in duplicates)
+                    {
+                        r.Error(StrategiesKey, $"Strategy '{duplicate}' is selected more than once.");
+                    }
+                }
+                else if (strategyIds.Count < MinComparedStrategies)
+                {
+                    r.Error(StrategiesKey, TooFewStrategiesMessage);
+                }
+                else if (strategyIds.Count > MaxComparedStrategies)
+                {
+                    r.Error(StrategiesKey, TooManyStrategiesMessage);
+                }
+
+                // The settings carry no strategy: ComparisonQuery.ForStrategy sets it, with its default parameters.
+                return string.Empty;
+            },
+            readParameters: false);
+
+        errors = reader.Errors;
+        if (errors.Count > 0)
+        {
+            result = null;
+            return false;
+        }
+
+        result = new ComparisonQuery(settings, strategyIds);
+        return true;
+    }
+
+    /// <summary>
+    /// The ids of strategies= as received (repeated keys merged, split on ',', trimmed, empty items dropped), without
+    /// any check: the comparator form uses them to keep its boxes checked (P4-U12).
+    /// </summary>
+    public static IReadOnlyList<string> ReadStrategyIds(IQueryCollection query)
+    {
+        ArgumentNullException.ThrowIfNull(query);
+        return query[StrategiesKey]
+            .SelectMany(value => (value ?? string.Empty).Split(StrategiesSeparator))
+            .Select(id => id.Trim())
+            .Where(id => id.Length > 0)
+            .ToList();
+    }
+
+    /// <summary>A URL spelling of tf ("daily", "weekly", any case); false for anything else.</summary>
+    public static bool TryReadTimeframe(string? text, out Timeframe timeframe)
+    {
+        timeframe = DefaultTimeframe;
+        return text is not null && Timeframes.TryGetValue(text.Trim(), out timeframe);
+    }
+
+    /// <summary>
+    /// The settings shared by every URL of a backtest, in field order; the strategy slot is read by readStrategy.
+    /// The returned value is meaningful only when the reader collected no error.
+    /// </summary>
+    private static BacktestQuery ReadSettings(Reader reader, Func<Reader, string?> readStrategy, bool readParameters)
+    {
         var symbol = reader.Text(SymbolKey, "Symbol")?.ToUpperInvariant();
         if (symbol is null)
         {
@@ -122,11 +248,7 @@ internal sealed record BacktestQuery(
             reader.Error(TimeframeKey, "Timeframe must be 'daily' or 'weekly'.");
         }
 
-        var strategyId = reader.Text(StrategyKey, "Strategy");
-        if (strategyId is null)
-        {
-            reader.ErrorIfNone(StrategyKey, "Strategy is required.");
-        }
+        var strategyId = readStrategy(reader);
 
         var from = reader.Date(FromKey, "Start date");
         var to = reader.Date(ToKey, "End date");
@@ -159,18 +281,24 @@ internal sealed record BacktestQuery(
         var riskFree = reader.Number(RiskFreeKey, "Risk-free rate") ?? DefaultRiskFreePercent;
         reader.CheckClosedRange(RiskFreeKey, "Risk-free rate", riskFree, MaxRiskFreePercent);
 
-        var parameters = reader.Parameters();
+        IReadOnlyDictionary<string, decimal> parameters = readParameters
+            ? reader.Parameters()
+            : new Dictionary<string, decimal>(StringComparer.Ordinal);
 
-        errors = reader.Errors;
-        if (errors.Count > 0)
-        {
-            result = null;
-            return false;
-        }
-
-        result = new BacktestQuery(
-            symbol!, timeframe, strategyId!, from, to, capital, fee, slippage, stopLoss, takeProfit, trailingStop, riskFree, parameters);
-        return true;
+        return new BacktestQuery(
+            symbol ?? string.Empty,
+            timeframe,
+            strategyId ?? string.Empty,
+            from,
+            to,
+            capital,
+            fee,
+            slippage,
+            stopLoss,
+            takeProfit,
+            trailingStop,
+            riskFree,
+            parameters);
     }
 
     /// <summary>
@@ -340,7 +468,48 @@ internal sealed record BacktestQuery(
     /// The decoded name / value pairs of <see cref="ToQueryString()"/>, in the same canonical order. A GET form that
     /// must keep these settings (Monte Carlo form) writes them as hidden fields, in this order, before its own fields.
     /// </summary>
-    public IReadOnlyList<KeyValuePair<string, string>> ToQueryPairs()
+    public IReadOnlyList<KeyValuePair<string, string>> ToQueryPairs() =>
+        SettingsPairs(new(StrategyKey, StrategyId), withParameters: true);
+
+    /// <summary>
+    /// Canonical query string of the comparator (P4-X1), without the leading "?": symbol, tf, strategies, from, to,
+    /// capital, fee, slip, sl, tp, ts, rf. The ids keep their order and are joined by a literal ',' (each id escaped on
+    /// its own), so the permalink stays readable. No strategy and no p.*: every strategy runs with its defaults.
+    /// </summary>
+    public string ToComparisonQueryString(IReadOnlyList<string> strategyIds)
+    {
+        ArgumentNullException.ThrowIfNull(strategyIds);
+        var joined = string.Join(StrategiesSeparator, strategyIds);
+        var builder = new StringBuilder();
+        foreach (var (key, value) in SettingsPairs(new(StrategiesKey, joined), withParameters: false))
+        {
+            if (key == StrategiesKey)
+            {
+                if (builder.Length > 0)
+                {
+                    builder.Append('&');
+                }
+
+                builder.Append(StrategiesKey).Append('=')
+                    .Append(string.Join(StrategiesSeparator, strategyIds.Select(Uri.EscapeDataString)));
+            }
+            else
+            {
+                Append(builder, key, value);
+            }
+        }
+
+        return builder.ToString();
+    }
+
+    /// <summary>
+    /// True when the received query string is exactly <see cref="ToComparisonQueryString"/> once both are decoded, so
+    /// "%2C" and "," are equal and the redirect to the canonical URL can never loop.
+    /// </summary>
+    public bool IsCanonicalComparison(QueryString received, IReadOnlyList<string> strategyIds) =>
+        DecodePairs(received.Value).SequenceEqual(DecodePairs(ToComparisonQueryString(strategyIds)));
+
+    private List<KeyValuePair<string, string>> SettingsPairs(KeyValuePair<string, string> strategyPair, bool withParameters)
     {
         var pairs = new List<KeyValuePair<string, string>>();
         void Add(string key, string? value)
@@ -353,7 +522,7 @@ internal sealed record BacktestQuery(
 
         Add(SymbolKey, Symbol);
         Add(TimeframeKey, FormatTimeframe(Timeframe));
-        Add(StrategyKey, StrategyId);
+        Add(strategyPair.Key, strategyPair.Value);
         Add(FromKey, From?.ToString(DateFormat, CultureInfo.InvariantCulture));
         Add(ToKey, To?.ToString(DateFormat, CultureInfo.InvariantCulture));
         Add(CapitalKey, FormatNumber(Capital));
@@ -363,9 +532,12 @@ internal sealed record BacktestQuery(
         Add(TakeProfitKey, FormatNumber(TakeProfitPercent));
         Add(TrailingStopKey, FormatNumber(TrailingStopPercent));
         Add(RiskFreeKey, FormatNumber(RiskFreePercent));
-        foreach (var (key, value) in Parameters.OrderBy(p => p.Key, StringComparer.Ordinal))
+        if (withParameters)
         {
-            Add(ParameterPrefix + key, FormatNumber(value));
+            foreach (var (key, value) in Parameters.OrderBy(p => p.Key, StringComparer.Ordinal))
+            {
+                Add(ParameterPrefix + key, FormatNumber(value));
+            }
         }
 
         return pairs;

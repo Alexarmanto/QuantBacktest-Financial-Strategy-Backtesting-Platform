@@ -1,0 +1,38 @@
+@model IFormFields
+@{
+    // Period and execution settings of a backtest form (P4-U1). Shared by the backtest and comparator forms.
+    // The number inputs are built by NumberSetting (TagBuilder): no empty data-* attribute (bug #22).
+    void FieldError(string? message)
+    {
+        if (message is not null)
+        {
+            <div class="invalid-feedback">@message</div>
+        }
+    }
+}
+<div class="col-6 col-md-3">
+    <label class="form-label" for="from">Start date</label>
+    <input class="form-control @(Model.Error(BacktestQuery.FromKey) is null ? "" : "is-invalid")" type="date"
+           id="from" name="@BacktestQuery.FromKey" value="@Model.Value(BacktestQuery.FromKey)" />
+    <div class="form-text">Optional.</div>
+    @{ FieldError(Model.Error(BacktestQuery.FromKey)); }
+</div>
+
+<div class="col-6 col-md-3">
+    <label class="form-label" for="to">End date</label>
+    <input class="form-control @(Model.Error(BacktestQuery.ToKey) is null ? "" : "is-invalid")" type="date"
+           id="to" name="@BacktestQuery.ToKey" value="@Model.Value(BacktestQuery.ToKey)" />
+    <div class="form-text">Optional.</div>
+    @{ FieldError(Model.Error(BacktestQuery.ToKey)); }
+</div>
+
+@foreach (var setting in NumberSetting.All)
+{
+    var error = Model.Error(setting.Key);
+    <div class="col-6 col-md-3">
+        <label class="form-label" for="@setting.Key">@setting.Label</label>
+        @setting.Input(Model.Value(setting.Key), error is not null)
+        <div class="form-text">@setting.Help</div>
+        @{ FieldError(error); }
+    </div>
+}

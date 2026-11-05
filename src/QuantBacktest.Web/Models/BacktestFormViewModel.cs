@@ -9,7 +9,7 @@ namespace QuantBacktest.Web.Models;
 /// The backtest form (P4-U1) with the raw input of the request (kept as typed, P4-U12), the error of each field
 /// (keyed by URL parameter name) and an optional general alert. Built from IStrategyCatalog only.
 /// </summary>
-internal sealed class BacktestFormViewModel
+internal sealed class BacktestFormViewModel : IFormFields
 {
     /// <summary>Strategy preselected on a blank form when the catalog has it (built-in, docs/CONTRACT.md section 8).</summary>
     public const string PreferredStrategyId = "sma-crossover";
@@ -22,12 +22,7 @@ internal sealed class BacktestFormViewModel
         Conventions.SymbolPattern.TrimStart('^').TrimEnd('$').Replace("A-Z", "A-Za-z", StringComparison.Ordinal);
 
     /// <summary>Settings fields of the form, in display order. Strategy parameters are in <see cref="StrategyOption"/>.</summary>
-    private static readonly string[] SettingKeys =
-    [
-        BacktestQuery.SymbolKey, BacktestQuery.TimeframeKey, BacktestQuery.StrategyKey, BacktestQuery.FromKey,
-        BacktestQuery.ToKey, BacktestQuery.CapitalKey, BacktestQuery.FeeKey, BacktestQuery.SlippageKey,
-        BacktestQuery.StopLossKey, BacktestQuery.TakeProfitKey, BacktestQuery.TrailingStopKey, BacktestQuery.RiskFreeKey,
-    ];
+    private static readonly string[] SettingKeys = [.. FormSettings.Keys, BacktestQuery.StrategyKey];
 
     private readonly IReadOnlyDictionary<string, string> _values;
     private readonly IReadOnlyDictionary<string, string> _errors;
@@ -85,41 +80,16 @@ internal sealed class BacktestFormViewModel
 
         string? Raw(string key) => query.ContainsKey(key) ? query[key].ToString() : null;
 
-        // A missing symbol key gets the first cached symbol: blank form, or a link that only picks a strategy
-        // ("Use this strategy"). A sent form always has the key, so its input is kept as typed, even empty (P4-U12).
         var selected = strategies.FirstOrDefault(s => s.Id == Raw(BacktestQuery.StrategyKey))
             ?? strategies.FirstOrDefault(s => s.Id == PreferredStrategyId)
             ?? strategies.FirstOrDefault();
 
-        var values = new Dictionary<string, string>(StringComparer.Ordinal)
-        {
-            [BacktestQuery.SymbolKey] = Raw(BacktestQuery.SymbolKey) ?? cachedSymbols.FirstOrDefault() ?? string.Empty,
-            [BacktestQuery.TimeframeKey] = Raw(BacktestQuery.TimeframeKey) ?? BacktestQuery.FormatTimeframe(BacktestQuery.DefaultTimeframe),
-            [BacktestQuery.StrategyKey] = selected?.Id ?? string.Empty,
-            [BacktestQuery.FromKey] = Raw(BacktestQuery.FromKey) ?? string.Empty,
-            [BacktestQuery.ToKey] = Raw(BacktestQuery.ToKey) ?? string.Empty,
-            [BacktestQuery.CapitalKey] = Raw(BacktestQuery.CapitalKey) ?? BacktestQuery.FormatNumber(BacktestQuery.DefaultCapital)!,
-            [BacktestQuery.FeeKey] = Raw(BacktestQuery.FeeKey) ?? BacktestQuery.FormatNumber(BacktestQuery.DefaultFeePercent)!,
-            [BacktestQuery.SlippageKey] = Raw(BacktestQuery.SlippageKey) ?? BacktestQuery.FormatNumber(BacktestQuery.DefaultSlippagePercent)!,
-            [BacktestQuery.StopLossKey] = Raw(BacktestQuery.StopLossKey) ?? string.Empty,
-            [BacktestQuery.TakeProfitKey] = Raw(BacktestQuery.TakeProfitKey) ?? string.Empty,
-            [BacktestQuery.TrailingStopKey] = Raw(BacktestQuery.TrailingStopKey) ?? string.Empty,
-            [BacktestQuery.RiskFreeKey] = Raw(BacktestQuery.RiskFreeKey) ?? BacktestQuery.FormatNumber(BacktestQuery.DefaultRiskFreePercent)!,
-        };
+        var values = FormSettings.Values(query, cachedSymbols);
+        values[BacktestQuery.StrategyKey] = selected?.Id ?? string.Empty;
 
         // Fields that exist on the page: an error on any other key would be invisible, so it goes to the top.
-        // Case-insensitive, like the query collection: "P.fast" in the URL is the p.fast input.
-        var fieldNames = new HashSet<string>(SettingKeys, StringComparer.OrdinalIgnoreCase);
-        foreach (var definition in selected?.Parameters ?? [])
-        {
-            fieldNames.Add(BacktestQuery.ParameterPrefix + definition.Key);
-        }
-
-        var fieldErrors = errors
-            .Where(e => fieldNames.Contains(e.Field))
-            .GroupBy(e => e.Field, StringComparer.OrdinalIgnoreCase)
-            .ToDictionary(g => g.Key, g => string.Join(" ", g.Select(e => e.Message)), StringComparer.OrdinalIgnoreCase);
-        var otherErrors = errors.Where(e => !fieldNames.Contains(e.Field)).Select(e => e.Message).ToList();
+        var fieldNames = SettingKeys.Concat((selected?.Parameters ?? []).Select(d => BacktestQuery.ParameterPrefix + d.Key));
+        var (fieldErrors, otherErrors) = FormSettings.SplitErrors(errors, fieldNames);
 
         StrategyOption ToOption(IStrategy strategy)
         {

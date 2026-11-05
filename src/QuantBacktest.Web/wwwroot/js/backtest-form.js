@@ -13,11 +13,6 @@ for (const button of document.querySelectorAll('[data-copy-link]')) {
 function initForm(form) {
     const strategy = form.elements.namedItem('strategy');
     const timeframe = form.elements.namedItem('tf');
-    const from = form.elements.namedItem('from');
-    const to = form.elements.namedItem('to');
-    const submit = form.querySelector('[data-submit]');
-    const spinner = form.querySelector('[data-spinner]');
-    let submitting = false;
 
     // Only the selected strategy's parameters are enabled: a disabled fieldset submits nothing.
     function syncStrategy() {
@@ -32,6 +27,21 @@ function initForm(form) {
         const supported = !option || option.dataset.timeframes.split(' ').includes(timeframe.value);
         strategy.setCustomValidity(supported ? '' : `This strategy is ${option.dataset.restriction}.`);
     }
+
+    strategy.addEventListener('change', syncStrategy);
+    timeframe.addEventListener('change', syncStrategy);
+    initSettings(form);
+    syncStrategy();
+}
+
+// The settings every backtest form shares (partials _MarketFields and _ExecutionFields): period order, ]min, max]
+// ranges, and one submission only (P4-U2). Exported for the comparator form (compare-form.js).
+export function initSettings(form) {
+    const from = form.elements.namedItem('from');
+    const to = form.elements.namedItem('to');
+    const submit = form.querySelector('[data-submit]');
+    const spinner = form.querySelector('[data-spinner]');
+    let submitting = false;
 
     function syncDates() {
         const reversed = from.value && to.value && from.value > to.value;
@@ -52,8 +62,6 @@ function initForm(form) {
         spinner.hidden = !busy;
     }
 
-    strategy.addEventListener('change', syncStrategy);
-    timeframe.addEventListener('change', syncStrategy);
     from.addEventListener('change', syncDates);
     to.addEventListener('change', syncDates);
     const exclusive = form.querySelectorAll('[data-exclusive-min]');
@@ -62,7 +70,6 @@ function initForm(form) {
         syncExclusiveMin(input);
     }
 
-    syncStrategy();
     syncDates();
 
     // P4-U2: one submission only, with a visible loading state. Invalid forms never reach this handler.

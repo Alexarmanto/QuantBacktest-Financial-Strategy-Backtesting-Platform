@@ -40,16 +40,7 @@ internal sealed record ResultHeaderViewModel(
             ? DisplayFormat.NotAvailable
             : $"{FormatDate(result.Bars[0].Date)} to {FormatDate(result.Bars[^1].Date)}";
 
-        var settings = new List<SettingRow>
-        {
-            new("Initial capital", DisplayFormat.Money(execution.InitialCapital)),
-            new("Fee", DisplayFormat.Percent((double)execution.FeeRate)),
-            new("Slippage", DisplayFormat.Percent((double)execution.SlippageRate)),
-            new("Stop-loss", FormatOptional(execution.StopLossFraction)),
-            new("Take-profit", FormatOptional(execution.TakeProfitFraction)),
-            new("Trailing stop", FormatOptional(execution.TrailingStopFraction)),
-            new("Risk-free rate", DisplayFormat.Percent(execution.RiskFreeRate)),
-        };
+        var settings = ExecutionRows(execution);
 
         // Values sent with the request; a key the request did not carry runs with its catalog default.
         var parameters = strategy.Parameters
@@ -68,6 +59,22 @@ internal sealed record ResultHeaderViewModel(
             permalink,
             result.PricesAdjusted ? null : UnadjustedPricesWarning,
             strategy.Documentation);
+    }
+
+    /// <summary>The execution settings in display form (fractions shown as percentages, disabled exits as "Off").</summary>
+    public static IReadOnlyList<SettingRow> ExecutionRows(ExecutionSettings execution)
+    {
+        ArgumentNullException.ThrowIfNull(execution);
+        return
+        [
+            new("Initial capital", DisplayFormat.Money(execution.InitialCapital)),
+            new("Fee", DisplayFormat.Percent((double)execution.FeeRate)),
+            new("Slippage", DisplayFormat.Percent((double)execution.SlippageRate)),
+            new("Stop-loss", FormatOptional(execution.StopLossFraction)),
+            new("Take-profit", FormatOptional(execution.TakeProfitFraction)),
+            new("Trailing stop", FormatOptional(execution.TrailingStopFraction)),
+            new("Risk-free rate", DisplayFormat.Percent(execution.RiskFreeRate)),
+        ];
     }
 
     private static string FormatDate(DateOnly date) => date.ToString(BacktestQuery.DateFormat, CultureInfo.InvariantCulture);

@@ -1,0 +1,39 @@
+@model IFormFields
+@{
+    // Symbol and timeframe of a backtest form (P4-U1). Shared by the backtest and comparator forms.
+    var tf = Model.Value(BacktestQuery.TimeframeKey);
+
+    // Server error under its field (P4-U12); Bootstrap shows it next to the .is-invalid input.
+    void FieldError(string? message)
+    {
+        if (message is not null)
+        {
+            <div class="invalid-feedback">@message</div>
+        }
+    }
+}
+<div class="col-12 col-md-4">
+    <label class="form-label" for="symbol">Symbol</label>
+    <input class="form-control qb-symbol @(Model.Error(BacktestQuery.SymbolKey) is null ? "" : "is-invalid")"
+           id="symbol" name="@BacktestQuery.SymbolKey" value="@Model.Value(BacktestQuery.SymbolKey)"
+           list="cached-symbols" required maxlength="10" pattern="@BacktestFormViewModel.SymbolInputPattern"
+           autocomplete="off" spellcheck="false" aria-describedby="symbol-help" />
+    <datalist id="cached-symbols">
+        @foreach (var symbol in Model.CachedSymbols)
+        {
+            <option value="@symbol"></option>
+        }
+    </datalist>
+    <div id="symbol-help" class="form-text">Letters, digits, '.' or '-'. Cached symbols are suggested.</div>
+    @{ FieldError(Model.Error(BacktestQuery.SymbolKey)); }
+</div>
+
+<div class="col-12 col-md-4">
+    <label class="form-label" for="tf">Timeframe</label>
+    <select class="form-select @(Model.Error(BacktestQuery.TimeframeKey) is null ? "" : "is-invalid")"
+            id="tf" name="@BacktestQuery.TimeframeKey">
+        <option value="daily" selected="@(tf == "daily")">Daily</option>
+        <option value="weekly" selected="@(tf == "weekly")">Weekly</option>
+    </select>
+    @{ FieldError(Model.Error(BacktestQuery.TimeframeKey)); }
+</div>
