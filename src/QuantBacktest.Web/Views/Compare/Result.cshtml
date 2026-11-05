@@ -1,0 +1,123 @@
+@model CompareResultViewModel
+@{
+    ViewData["Title"] = $"{Model.Symbol} · Compare";
+}
+
+<div class="d-flex flex-wrap align-items-start justify-content-between gap-2 mb-3">
+    <div class="qb-min-0">
+        <h1 class="h3 mb-1 text-break">@Model.Symbol · Compare strategies</h1>
+        <p class="text-body-secondary mb-0">@Model.Timeframe · @Model.Period</p>
+    </div>
+    <button type="button" class="btn btn-outline-primary" data-copy-link="@Model.Permalink"
+            aria-controls="permalink-fallback">Copy link</button>
+</div>
+
+@* Shown by backtest-form.js when the clipboard is unavailable (non-secure context, e.g. Docker accessed by IP). *@
+<div class="mb-3" id="permalink-fallback" data-copy-link-fallback hidden>
+    <label class="form-label small text-body-secondary" for="permalink-input">Copy this link:</label>
+    <input class="form-control form-control-sm" id="permalink-input" type="text" readonly value="@Model.Permalink" />
+</div>
+
+<nav class="d-flex flex-wrap gap-2 mb-3" aria-label="Comparison actions">
+    <a class="btn btn-primary" href="@Model.EditSettingsUrl">Edit settings</a>
+</nav>
+
+<p class="text-body-secondary">@CompareFormViewModel.DefaultParametersNote</p>
+
+@if (Model.Errors.Count > 0)
+{
+    <div class="alert alert-warning" role="alert">
+        @if (Model.NothingRun)
+        {
+            <p class="fw-semibold">@CompareResultViewModel.NothingRunMessage</p>
+        }
+        <ul class="mb-0">
+            @foreach (var error in Model.Errors)
+            {
+                <li><span class="fw-semibold">@error.Name</span>: @error.Message</li>
+            }
+        </ul>
+    </div>
+}
+
+<div class="row g-3">
+    @if (Model.Charts is { } charts)
+    {
+        <div class="col-12">
+            <section class="qb-panel">
+                <h2 class="h5">Equity</h2>
+                <div class="qb-chart">
+                    <canvas id="chart-compare" role="img" aria-label="@charts.Summary"></canvas>
+                </div>
+                @* The only inline script allowed (P4-U16): data, never code. The serializer escapes < > &. *@
+                <script type="application/json" id="compare-charts-data">@Html.Raw(charts.Json)</script>
+            </section>
+        </div>
+
+        <div class="col-12">
+            <section class="qb-panel">
+                <h2 class="h5">Metrics</h2>
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover mb-0 qb-compare" data-sortable>
+                        <thead>
+                            <tr>
+                                @foreach (var column in CompareResultViewModel.Columns)
+                                {
+                                    <th scope="col" class="@(column.SortType == ResultTradesViewModel.NumberSort ? "num" : null)">
+                                        <button type="button" class="qb-sort" data-sort-type="@column.SortType">@column.Label</button>
+                                    </th>
+                                }
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var row in Model.Rows)
+                            {
+                                <tr>
+                                    <th scope="row" class="fw-normal" data-sort-value="@row.Name">
+                                        <span class="@row.SwatchClass" aria-hidden="true"></span>
+                                        @if (row.DetailUrl is not null)
+                                        {
+                                            <a href="@row.DetailUrl">@row.Name</a>
+                                        }
+                                        else
+                                        {
+                                            @row.Name
+                                        }
+                                    </th>
+                                    @foreach (var cell in row.Cells)
+                                    {
+                                        @cell.Td()
+                                    }
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
+    }
+
+    <div class="col-12 col-lg-6">
+        <section class="qb-panel">
+            <h2 class="h5">Settings</h2>
+            <dl class="row mb-0">
+                @foreach (var row in Model.Execution)
+                {
+                    <dt class="col-6 fw-normal text-body-secondary">@row.Label</dt>
+                    <dd class="col-6 num mb-1">@row.Value</dd>
+                }
+            </dl>
+        </section>
+    </div>
+</div>
+
+@section Scripts {
+    <script type="module" src="~/js/backtest-form.js" asp-append-version="true"></script>
+    @if (Model.Charts is not null)
+    {
+        <script type="module" src="~/js/table-sort.js" asp-append-version="true"></script>
+        @* Chart.js ships as UMD only: a classic script defines globalThis.Chart before the (deferred) module runs. *@
+        <script src="~/lib/chart.js/chart.umd.min.js"></script>
+        <script type="module" src="~/js/compare-charts.js" asp-append-version="true"></script>
+    }
+}

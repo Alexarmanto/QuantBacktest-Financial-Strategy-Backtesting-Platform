@@ -28,6 +28,15 @@
     --qb-series-3: #b18cff;
     --qb-series-4: #ff7ab6;
     --qb-series-5: #c9b28a;
+
+    /* Comparator curves (P4-X1), in the order of the URL; the benchmark keeps --qb-series-benchmark, dashed.
+       Blue, amber, cyan, violet: no green or red, and no pink (too close to the loss red). The 5th colour is one
+       variable: beige by default; if it reads too close to the amber or the benchmark grey, use #e9ecef (off-white). */
+    --qb-compare-1: var(--qb-series-strategy);
+    --qb-compare-2: var(--qb-series-1);
+    --qb-compare-3: var(--qb-series-2);
+    --qb-compare-4: var(--qb-series-3);
+    --qb-compare-5: var(--qb-series-5);
 }
 
 /* Numbers: aligned digits, right-aligned, never wrapped. */
@@ -166,6 +175,50 @@
 .qb-sort:focus-visible {
     outline: 2px solid var(--bs-primary);
     outline-offset: 2px;
+}
+
+/* Comparator table: a swatch of the colour of each curve before its name; the benchmark swatch is dashed. */
+.qb-swatch {
+    display: inline-block;
+    width: 0.9rem;
+    height: 0;
+    margin-right: 0.4rem;
+    vertical-align: middle;
+    border-top: 3px solid var(--qb-swatch-color);
+}
+
+.qb-swatch-1 { --qb-swatch-color: var(--qb-compare-1); }
+.qb-swatch-2 { --qb-swatch-color: var(--qb-compare-2); }
+.qb-swatch-3 { --qb-swatch-color: var(--qb-compare-3); }
+.qb-swatch-4 { --qb-swatch-color: var(--qb-compare-4); }
+.qb-swatch-5 { --qb-swatch-color: var(--qb-compare-5); }
+
+.qb-swatch-benchmark {
+    --qb-swatch-color: var(--qb-series-benchmark);
+    border-top-style: dashed;
+}
+
+/* Comparator table only (the trades table keeps one-line headers): headers and strategy names wrap word by word so
+   the 11 columns fit a desktop width; numbers keep .num nowrap; .table-responsive still scrolls at 360 px. A
+   no-break space glues the sort icon to the last word of the label. */
+.qb-compare th {
+    white-space: normal;
+}
+
+.qb-compare .qb-sort {
+    text-align: inherit;
+}
+
+.qb-compare .qb-sort::after {
+    content: "\00A0\2195";
+}
+
+.qb-compare [aria-sort="ascending"] > .qb-sort::after {
+    content: "\00A0\25B2";
+}
+
+.qb-compare [aria-sort="descending"] > .qb-sort::after {
+    content: "\00A0\25BC";
 }
 
 /* Exit reason badges: Bootstrap has no purple (the other four reasons use text-bg-*). */

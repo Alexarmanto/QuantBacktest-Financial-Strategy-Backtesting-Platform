@@ -1,0 +1,62 @@
+@model CompareFormViewModel
+@{
+    ViewData["Title"] = "Compare";
+    var strategiesError = Model.StrategiesError;
+}
+
+<h1 class="h3 mb-3">Compare strategies</h1>
+
+<partial name="_FormAlerts" model="Model" />
+
+<form id="compare-form" class="qb-panel" method="get" asp-controller="Compare" asp-action="Result">
+    <div class="row g-3">
+        <partial name="_MarketFields" model="Model" />
+
+        @* Every data-* value below is always set (never null), so Razor never writes an empty attribute. *@
+        <fieldset class="col-12" data-strategy-range data-min="@CompareFormViewModel.MinStrategies"
+                  data-max="@CompareFormViewModel.MaxStrategies" data-too-few="@CompareFormViewModel.TooFewMessage"
+                  data-too-many="@CompareFormViewModel.TooManyMessage" aria-describedby="strategies-count strategies-note">
+            <legend class="form-label fs-6 mb-1">Strategies</legend>
+            <div class="row g-2">
+                @foreach (var (group, options) in new[] { ("Built-in", Model.BuiltInStrategies), ("Custom", Model.CustomStrategies) })
+                {
+                    if (options.Count == 0)
+                    {
+                        continue;
+                    }
+                    <div class="col-12 col-md-6">
+                        <p class="small text-body-secondary mb-1">@group</p>
+                        @foreach (var option in options)
+                        {
+                            <div class="form-check">
+                                <input class="form-check-input @(strategiesError is null ? "" : "is-invalid")" type="checkbox"
+                                       id="@option.InputId" name="@BacktestQuery.StrategiesKey" value="@option.Id"
+                                       data-timeframes="@option.Timeframes" checked="@option.IsChecked" disabled="@option.IsDisabled" />
+                                <label class="form-check-label" for="@option.InputId">@option.Label</label>
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+            <div id="strategies-count" class="form-text" aria-live="polite" aria-atomic="true" data-strategy-count>@Model.CountText</div>
+            @if (strategiesError is not null)
+            {
+                <div class="invalid-feedback d-block">@strategiesError</div>
+            }
+            <div id="strategies-note" class="form-text">@CompareFormViewModel.DefaultParametersNote</div>
+        </fieldset>
+
+        <partial name="_ExecutionFields" model="Model" />
+    </div>
+
+    <div class="mt-4">
+        <button type="submit" class="btn btn-primary" data-submit>
+            <span class="spinner-border spinner-border-sm me-1" aria-hidden="true" hidden data-spinner></span>
+            <span data-submit-label>Compare strategies</span>
+        </button>
+    </div>
+</form>
+
+@section Scripts {
+    <script type="module" src="~/js/compare-form.js" asp-append-version="true"></script>
+}

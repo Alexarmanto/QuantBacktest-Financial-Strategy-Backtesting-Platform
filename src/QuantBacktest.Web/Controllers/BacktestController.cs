@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using QuantBacktest.Core.Abstractions;
 using QuantBacktest.Core.Errors;
 using QuantBacktest.Core.Models;
+using QuantBacktest.Web.Infrastructure;
 using QuantBacktest.Web.Models;
 
 namespace QuantBacktest.Web.Controllers;
@@ -328,16 +329,13 @@ public sealed class BacktestController(
         var strategy = await catalog.FindAsync(query.StrategyId, cancellationToken);
         if (strategy is null)
         {
-            return (null, [new QueryFieldError(BacktestQuery.StrategyKey, $"Unknown strategy '{query.StrategyId}'.")]);
+            return (null, [new QueryFieldError(BacktestQuery.StrategyKey, StrategyChecks.UnknownStrategy(query.StrategyId))]);
         }
 
         var strategyErrors = query.ValidateParameters(strategy.Parameters).ToList();
-        if (!strategy.SupportedTimeframes.Contains(query.Timeframe))
+        if (StrategyChecks.TimeframeError(strategy, query.Timeframe) is { } timeframeError)
         {
-            strategyErrors.Insert(0, new QueryFieldError(
-                BacktestQuery.StrategyKey,
-                $"{strategy.Name} does not support the {BacktestQuery.FormatTimeframe(query.Timeframe)} timeframe "
-                + $"({StrategyOption.TimeframeRestriction(strategy)})."));
+            strategyErrors.Insert(0, new QueryFieldError(BacktestQuery.StrategyKey, timeframeError));
         }
 
         return strategyErrors.Count > 0 ? (null, strategyErrors) : (strategy, []);
@@ -350,22 +348,8 @@ public sealed class BacktestController(
         CancellationToken cancellationToken)
     {
         var strategies = await catalog.GetAllAsync(cancellationToken);
-        var cachedSymbols = await GetCachedSymbolsAsync(cancellationToken);
+        var cachedSymbols = await CachedSymbols.GetAsync(marketData, logger, cancellationToken);
         var model = BacktestFormViewModel.Create(Request.Query, strategies, cachedSymbols, errors, alert);
         return View(nameof(Index), model);
-    }
-
-    /// <summary>The datalist is a convenience: if the cache cannot be listed, the form still works without it.</summary>
-    private async Task<IReadOnlyList<string>> GetCachedSymbolsAsync(CancellationToken cancellationToken)
-    {
-        try
-        {
-            return await marketData.GetCachedSymbolsAsync(cancellationToken);
-        }
-        catch (Exception exception) when (exception is not OperationCanceledException)
-        {
-            logger.LogWarning(exception, "Cached symbols could not be listed; the symbol suggestions are left empty.");
-            return [];
-        }
     }
 }

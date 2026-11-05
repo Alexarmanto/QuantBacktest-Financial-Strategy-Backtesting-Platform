@@ -2,8 +2,8 @@
 // prepared by ResultChartsViewModel in #result-charts-data (drawdowns already negative and in percent, reference lines
 // deduplicated, markers paired with their date and fill price): this module only draws and formats, no finance.
 // Chart.js is the UMD build loaded just before this module (globalThis.Chart).
-// The formatters, options() and readTheme() are exported for the other chart modules (monte-carlo-charts.js); importing
-// this module draws nothing on a page without #result-charts-data.
+// The formatters, line(), spansMoreThanTwoYears(), options() and readTheme() are exported for the other chart modules
+// (monte-carlo-charts.js, compare-charts.js); importing this module draws nothing on a page without #result-charts-data.
 
 // Formats of DisplayFormat (P4-U14), en-US: $10,120.50, -$10.50, -23%, -1.39%. A value rounded to zero has no sign.
 const money = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', signDisplay: 'negative' });
@@ -138,7 +138,7 @@ function initLogToggle(chart) {
     });
 }
 
-function line(label, data, color, extra = {}) {
+export function line(label, data, color, extra = {}) {
     return {
         label,
         data,
@@ -168,7 +168,7 @@ function marker(label, data, color, rotation) {
 }
 
 // Dates are ISO strings (yyyy-MM-dd): compared and cut as text, no Date object, so no time zone shift.
-function spansMoreThanTwoYears(dates) {
+export function spansMoreThanTwoYears(dates) {
     const first = dates[0];
     const twoYearsLater = `${Number(first.slice(0, 4)) + 2}${first.slice(4)}`;
     return dates[dates.length - 1] > twoYearsLater;
@@ -245,5 +245,7 @@ export function readTheme() {
         benchmarkFill: read('--qb-series-benchmark-fill'),
         price: read('--qb-series-price'),
         palette: [1, 2, 3, 4, 5].map(i => read(`--qb-series-${i}`)),
+        // Comparator curves (compare-charts.js), never green or red: site.css --qb-compare-1 to 5.
+        comparison: [1, 2, 3, 4, 5].map(i => read(`--qb-compare-${i}`)),
     };
 }

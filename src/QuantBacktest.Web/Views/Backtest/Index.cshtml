@@ -1,7 +1,6 @@
 @model BacktestFormViewModel
 @{
     ViewData["Title"] = "Backtest";
-    var tf = Model.Value(BacktestQuery.TimeframeKey);
 
     // Server error under its field (P4-U12); Bootstrap shows it next to the .is-invalid input.
     void FieldError(string? message)
@@ -15,64 +14,11 @@
 
 <h1 class="h3 mb-3">Backtest</h1>
 
-@if (Model.Alert is { } alert)
-{
-    <div class="alert alert-danger" role="alert">
-        <p class="mb-0">@alert.Message</p>
-        @if (alert.Hint is not null)
-        {
-            <p class="mb-0 mt-2">@alert.Hint</p>
-        }
-        @if (alert.Command is not null)
-        {
-            <pre class="qb-command mb-0 mt-2"><code>@alert.Command</code></pre>
-        }
-    </div>
-}
-
-@if (Model.HasErrors)
-{
-    <div class="alert alert-warning" role="alert">
-        <p class="mb-0">Please correct the highlighted fields.</p>
-        @if (Model.OtherErrors.Count > 0)
-        {
-            <ul class="mb-0 mt-2">
-                @foreach (var message in Model.OtherErrors)
-                {
-                    <li>@message</li>
-                }
-            </ul>
-        }
-    </div>
-}
+<partial name="_FormAlerts" model="Model" />
 
 <form id="backtest-form" class="qb-panel" method="get" asp-controller="Backtest" asp-action="Result">
     <div class="row g-3">
-        <div class="col-12 col-md-4">
-            <label class="form-label" for="symbol">Symbol</label>
-            <input class="form-control qb-symbol @(Model.Error(BacktestQuery.SymbolKey) is null ? "" : "is-invalid")"
-                   id="symbol" name="@BacktestQuery.SymbolKey" value="@Model.Value(BacktestQuery.SymbolKey)"
-                   list="cached-symbols" required maxlength="10" pattern="@BacktestFormViewModel.SymbolInputPattern"
-                   autocomplete="off" spellcheck="false" aria-describedby="symbol-help" />
-            <datalist id="cached-symbols">
-                @foreach (var symbol in Model.CachedSymbols)
-                {
-                    <option value="@symbol"></option>
-                }
-            </datalist>
-            <div id="symbol-help" class="form-text">Letters, digits, '.' or '-'. Cached symbols are suggested.</div>
-            @{ FieldError(Model.Error(BacktestQuery.SymbolKey)); }
-        </div>
-
-        <div class="col-12 col-md-4">
-            <label class="form-label" for="tf">Timeframe</label>
-            <select class="form-select @(Model.Error(BacktestQuery.TimeframeKey) is null ? "" : "is-invalid")"
-                    id="tf" name="@BacktestQuery.TimeframeKey">
-                <option value="daily" selected="@(tf == "daily")">Daily</option>
-                <option value="weekly" selected="@(tf == "weekly")">Weekly</option>
-            </select>
-            @{ FieldError(Model.Error(BacktestQuery.TimeframeKey)); }
-        </div>
+        <partial name="_MarketFields" model="Model" />
 
         <div class="col-12 col-md-4">
             <label class="form-label" for="strategy">Strategy</label>
@@ -125,32 +71,7 @@
             </fieldset>
         }
 
-        <div class="col-6 col-md-3">
-            <label class="form-label" for="from">Start date</label>
-            <input class="form-control @(Model.Error(BacktestQuery.FromKey) is null ? "" : "is-invalid")" type="date"
-                   id="from" name="@BacktestQuery.FromKey" value="@Model.Value(BacktestQuery.FromKey)" />
-            <div class="form-text">Optional.</div>
-            @{ FieldError(Model.Error(BacktestQuery.FromKey)); }
-        </div>
-
-        <div class="col-6 col-md-3">
-            <label class="form-label" for="to">End date</label>
-            <input class="form-control @(Model.Error(BacktestQuery.ToKey) is null ? "" : "is-invalid")" type="date"
-                   id="to" name="@BacktestQuery.ToKey" value="@Model.Value(BacktestQuery.ToKey)" />
-            <div class="form-text">Optional.</div>
-            @{ FieldError(Model.Error(BacktestQuery.ToKey)); }
-        </div>
-
-        @foreach (var setting in NumberSetting.All)
-        {
-            var error = Model.Error(setting.Key);
-            <div class="col-6 col-md-3">
-                <label class="form-label" for="@setting.Key">@setting.Label</label>
-                @setting.Input(Model.Value(setting.Key), error is not null)
-                <div class="form-text">@setting.Help</div>
-                @{ FieldError(error); }
-            </div>
-        }
+        <partial name="_ExecutionFields" model="Model" />
     </div>
 
     <div class="mt-4">

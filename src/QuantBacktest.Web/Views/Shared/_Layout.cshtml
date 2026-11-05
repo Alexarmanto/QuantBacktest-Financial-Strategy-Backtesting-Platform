@@ -1,15 +1,7 @@
 @inject FakeServicesStatus FakeServices
 @{
-    // Navigation of P4-U13. A page that does not exist yet stays visible but disabled; its PR enables it.
-    var navigation = new (string Label, string Controller, bool Enabled)[]
-    {
-        ("Backtest", "Backtest", true),
-        ("Compare", "Compare", false),
-        ("Optimize", "Optimize", false),
-        ("Validate", "Validate", false),
-        ("Strategies", "Strategies", true),
-        ("Data", "Data", false),
-    };
+    // Navigation of P4-U13 (Navigation.Items). A page that does not exist yet stays visible but disabled.
+    var navigation = Navigation.Items;
     var currentController = ViewContext.RouteData.Values["controller"] as string;
 }
 <!DOCTYPE html>
