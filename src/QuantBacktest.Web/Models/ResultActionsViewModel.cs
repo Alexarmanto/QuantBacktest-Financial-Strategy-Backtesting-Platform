@@ -9,7 +9,7 @@ namespace QuantBacktest.Web.Models;
 /// Action buttons of the result page (P4-U7). Every URL carries the canonical query string of BacktestQuery, so each
 /// page receives exactly the settings of this result. OptimizeUrl is null below 2 strategy parameters (heatmap X, Y);
 /// MonteCarloUrl is null below Conventions.MinTradesForMonteCarlo trades (MC1), and the button is then disabled.
-/// The PDF, CSV and Optimize routes come with their own PR, which then enables the button.
+/// The Optimize route comes with its own PR, which then enables the button; PDF and CSV are served by BacktestController.
 /// </summary>
 internal sealed record ResultActionsViewModel(
     string EditSettingsUrl,

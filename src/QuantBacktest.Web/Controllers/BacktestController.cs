@@ -7,8 +7,9 @@ using QuantBacktest.Web.Models;
 namespace QuantBacktest.Web.Controllers;
 
 /// <summary>
-/// Backtest form and permalink results (PART-4 section 5, P4-U1, P4-U12). Thin: BacktestQuery reads and writes the
-/// URL, the view models format, IBacktestService computes. Nothing financial happens here.
+/// Backtest form, permalink results and downloads (PART-4 section 5, P4-U1, P4-U12). Thin: BacktestQuery reads and
+/// writes the URL, the view models format, IBacktestService computes, IReportGenerator builds the files. Nothing
+/// financial happens here.
 /// </summary>
 public sealed class BacktestController(
     IStrategyCatalog catalog,
@@ -110,7 +111,7 @@ public sealed class BacktestController(
             effective = query.WithDefaultParameters(strategy.Parameters);
             if (!monteCarloValid)
             {
-                return View(MonteCarloViewModel.InvalidSettings(strategy, effective, Request.Query, monteCarloErrors, PathBase));
+                return View(MonteCarloInvalidSettings(strategy, effective, monteCarloErrors));
             }
 
             if (!effective.IsCanonical(Request.QueryString, monteCarloRequest!))
@@ -138,9 +139,178 @@ public sealed class BacktestController(
         catch (BacktestValidationException exception)
         {
             // MC1, the only exception IMonteCarloService declares: fewer than 5 trades, or a request out of range.
-            return View(MonteCarloViewModel.Refused(result, strategy, effective, monteCarloRequest!, exception, permalink, PathBase));
+            return View(MonteCarloRefused(result, strategy, effective, monteCarloRequest!, exception, permalink));
         }
     }
+
+    /// <summary>
+    /// GET /Backtest/Report.pdf?… (PART-4 section 5): the PDF of IReportGenerator (Part 1), served as is. With
+    /// &amp;mc=true&amp;sims=&amp;seed=, IMonteCarloService runs first and the PDF gets its Monte Carlo section.
+    /// Same reading, canonical redirect and errors as Result: invalid backtest settings, an mc other than "true" or a
+    /// refused backtest → the backtest form. With mc=true, invalid sims / seed (nothing run) or a refused simulation
+    /// (MC1) → the Monte Carlo page, built by the same code as GET /Backtest/MonteCarlo (decisions D1 to D4).
+    /// The generator declares no exception: anything it throws is a bug and is not caught.
+    /// </summary>
+    [HttpGet(ResultActionsViewModel.PdfPath)]
+    public async Task<IActionResult> Report(
+        [FromServices] IBacktestService backtests,
+        [FromServices] IMonteCarloService monteCarlo,
+        [FromServices] IReportGenerator reports,
+        CancellationToken cancellationToken)
+    {
+        if (Request.Query.Count == 0)
+        {
+            return RedirectToAction(nameof(Index));
+        }
+
+        var backtestValid = BacktestQuery.TryParse(Request.Query, out var query, out var errors);
+        var flagValid = BacktestQuery.TryParseReportFlag(Request.Query, out var withMonteCarlo, out var flagErrors);
+        if (!backtestValid || !flagValid)
+        {
+            return await FormAsync([.. errors, .. flagErrors], alert: null, cancellationToken);
+        }
+
+        // sims and seed only mean something with mc=true; without it they are dropped by the canonical redirect.
+        MonteCarloRequest? monteCarloRequest = null;
+        IReadOnlyList<QueryFieldError> monteCarloErrors = [];
+        var monteCarloValid = !withMonteCarlo
+            || BacktestQuery.TryParseMonteCarlo(Request.Query, out monteCarloRequest, out monteCarloErrors);
+
+        BacktestResult result;
+        IStrategy strategy;
+        BacktestQuery effective;
+        try
+        {
+            var (found, strategyErrors) = await ResolveStrategyAsync(query!, cancellationToken);
+            if (found is null)
+            {
+                return await FormAsync(strategyErrors, alert: null, cancellationToken);
+            }
+
+            strategy = found;
+            effective = query!.WithDefaultParameters(strategy.Parameters);
+            if (!monteCarloValid)
+            {
+                return View(nameof(MonteCarlo), MonteCarloInvalidSettings(strategy, effective, monteCarloErrors));
+            }
+
+            if (monteCarloRequest is null)
+            {
+                if (!effective.IsCanonical(Request.QueryString))
+                {
+                    return Redirect(ActionPath + "?" + effective.ToQueryString());
+                }
+            }
+            else if (!effective.IsCanonical(Request.QueryString, monteCarloRequest, forReport: true))
+            {
+                return Redirect(ActionPath + "?" + effective.ToQueryString(monteCarloRequest, forReport: true));
+            }
+
+            result = await backtests.RunAsync(effective.ToBacktestRequest(), cancellationToken);
+        }
+        catch (BacktestValidationException exception)
+        {
+            return await FormAsync([], FormAlert.From(exception), cancellationToken);
+        }
+        catch (MarketDataException exception)
+        {
+            return await FormAsync([], FormAlert.From(exception), cancellationToken);
+        }
+
+        MonteCarloResult? simulation = null;
+        if (monteCarloRequest is not null)
+        {
+            try
+            {
+                simulation = monteCarlo.Run(result, monteCarloRequest);
+            }
+            catch (BacktestValidationException exception)
+            {
+                // MC1: the page of the simulation explains the refusal; its Copy link is the Monte Carlo page, not the PDF.
+                var permalink = AbsoluteUrl(PathBase + ResultActionsViewModel.MonteCarloPath, effective.ToQueryString(monteCarloRequest));
+                return View(nameof(MonteCarlo), MonteCarloRefused(result, strategy, effective, monteCarloRequest, exception, permalink));
+            }
+        }
+
+        var pdf = reports.GeneratePdf(result, simulation);
+        return File(pdf, DownloadFile.PdfContentType, DownloadFile.PdfFileName(result));
+    }
+
+    /// <summary>
+    /// GET /Backtest/Trades.csv?… (PART-4 section 5): the trade log of IReportGenerator.GenerateTradesCsv (format:
+    /// docs/CONTRACT.md section 11), UTF-8 without BOM, Content-Type exactly text/csv. Same reading, canonical redirect
+    /// and errors as Result; mc, sims and seed are not part of this URL and are dropped by the redirect.
+    /// </summary>
+    [HttpGet(ResultActionsViewModel.TradesCsvPath)]
+    public async Task<IActionResult> TradesCsv(
+        [FromServices] IBacktestService backtests,
+        [FromServices] IReportGenerator reports,
+        CancellationToken cancellationToken)
+    {
+        if (Request.Query.Count == 0)
+        {
+            return RedirectToAction(nameof(Index));
+        }
+
+        if (!BacktestQuery.TryParse(Request.Query, out var query, out var errors))
+        {
+            return await FormAsync(errors, alert: null, cancellationToken);
+        }
+
+        BacktestResult result;
+        try
+        {
+            var (strategy, strategyErrors) = await ResolveStrategyAsync(query, cancellationToken);
+            if (strategy is null)
+            {
+                return await FormAsync(strategyErrors, alert: null, cancellationToken);
+            }
+
+            var effective = query.WithDefaultParameters(strategy.Parameters);
+            if (!effective.IsCanonical(Request.QueryString))
+            {
+                return Redirect(ActionPath + "?" + effective.ToQueryString());
+            }
+
+            result = await backtests.RunAsync(effective.ToBacktestRequest(), cancellationToken);
+        }
+        catch (BacktestValidationException exception)
+        {
+            return await FormAsync([], FormAlert.From(exception), cancellationToken);
+        }
+        catch (MarketDataException exception)
+        {
+            return await FormAsync([], FormAlert.From(exception), cancellationToken);
+        }
+
+        var csv = reports.GenerateTradesCsv(result);
+        return File(DownloadFile.CsvEncoding.GetBytes(csv), DownloadFile.CsvContentType, DownloadFile.CsvFileName(result));
+    }
+
+    /// <summary>
+    /// The Monte Carlo page when sims or seed is invalid. Shared by MonteCarlo and Report (decision D2): its form
+    /// always submits to /Backtest/MonteCarlo (MonteCarloViewModel builds Form.Action), never to the current URL.
+    /// </summary>
+    private MonteCarloViewModel MonteCarloInvalidSettings(
+        IStrategy strategy,
+        BacktestQuery effective,
+        IReadOnlyList<QueryFieldError> errors) =>
+        MonteCarloViewModel.InvalidSettings(strategy, effective, Request.Query, errors, PathBase);
+
+    /// <summary>
+    /// The Monte Carlo page when IMonteCarloService refused the simulation (MC1). Shared by MonteCarlo and Report
+    /// (decision D3). The permalink is given by the caller, so MonteCarlo keeps its own (built from the received path).
+    /// </summary>
+    private MonteCarloViewModel MonteCarloRefused(
+        BacktestResult result,
+        IStrategy strategy,
+        BacktestQuery effective,
+        MonteCarloRequest request,
+        BacktestValidationException exception,
+        string permalink) =>
+        MonteCarloViewModel.Refused(result, strategy, effective, request, exception, permalink, PathBase);
+
+    private string AbsoluteUrl(string path, string queryString) => $"{Request.Scheme}://{Request.Host}{path}?{queryString}";
 
     /// <summary>Path of the current action, as received: a redirect keeps it and only rewrites the query string.</summary>
     private string ActionPath => $"{Request.PathBase}{Request.Path}";

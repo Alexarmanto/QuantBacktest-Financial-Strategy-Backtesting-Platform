@@ -211,6 +211,40 @@ internal sealed record BacktestQuery(
         return true;
     }
 
+    /// <summary>Error of an mc value other than "true" (decision D1). mc has no input on the form: shown at the top.</summary>
+    public const string MonteCarloFlagMessage = "mc must be 'true' to add the Monte Carlo section, or be left out.";
+
+    /// <summary>
+    /// Reads mc of the PDF URL (PART-4 section 5, decision D1): absent or empty → false; "true" (any case) → true;
+    /// any other value, or mc given more than once, is a field error. sims and seed are read by
+    /// <see cref="TryParseMonteCarlo"/>, only when mc is true. Never throws on user input.
+    /// </summary>
+    public static bool TryParseReportFlag(
+        IQueryCollection query,
+        out bool withMonteCarlo,
+        out IReadOnlyList<QueryFieldError> errors)
+    {
+        ArgumentNullException.ThrowIfNull(query);
+        var reader = new Reader(query);
+
+        withMonteCarlo = false;
+        var text = reader.Text(MonteCarloKey, "Monte Carlo flag (mc)");
+        if (text is not null)
+        {
+            if (string.Equals(text, MonteCarloFlag, StringComparison.OrdinalIgnoreCase))
+            {
+                withMonteCarlo = true;
+            }
+            else
+            {
+                reader.Error(MonteCarloKey, MonteCarloFlagMessage);
+            }
+        }
+
+        errors = reader.Errors;
+        return errors.Count == 0;
+    }
+
     /// <summary>
     /// Checks the p.* values against the definitions of the selected strategy (from IStrategyCatalog): known key,
     /// value in [Min, Max], whole number for an Integer parameter. Absent keys are fine: the strategy uses its
@@ -269,12 +303,13 @@ internal sealed record BacktestQuery(
         DecodePairs(received.Value).SequenceEqual(DecodePairs(ToQueryString()));
 
     /// <summary>
-    /// Monte Carlo page (P4-X4): true when the received query string is exactly
-    /// <see cref="ToQueryString(MonteCarloRequest, bool)"/> once decoded. A received mc, an absent sims or seed, or
-    /// another order is not canonical, so the page redirects once.
+    /// Monte Carlo page (P4-X4), or the PDF with its Monte Carlo section (forReport): true when the received query
+    /// string is exactly <see cref="ToQueryString(MonteCarloRequest, bool)"/> with the same forReport, once decoded.
+    /// For the page, a received mc is not canonical; for the PDF, mc=true must come before sims and seed. An absent
+    /// sims or seed, or another order, is not canonical either, so the action redirects once.
     /// </summary>
-    public bool IsCanonical(QueryString received, MonteCarloRequest monteCarlo) =>
-        DecodePairs(received.Value).SequenceEqual(DecodePairs(ToQueryString(monteCarlo)));
+    public bool IsCanonical(QueryString received, MonteCarloRequest monteCarlo, bool forReport = false) =>
+        DecodePairs(received.Value).SequenceEqual(DecodePairs(ToQueryString(monteCarlo, forReport)));
 
     /// <summary>
     /// Canonical query string, without the leading "?": symbol, tf, strategy, from, to, capital, fee, slip, sl, tp,

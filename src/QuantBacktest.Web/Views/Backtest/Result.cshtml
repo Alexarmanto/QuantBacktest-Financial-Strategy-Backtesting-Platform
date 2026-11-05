@@ -34,12 +34,9 @@
 
 <nav class="d-flex flex-wrap gap-2 mb-4" aria-label="Result actions">
     <a class="btn btn-primary" href="@actions.EditSettingsUrl">Edit settings</a>
-    <span class="d-inline-block" title="@ResultActionsViewModel.ComingSoon">
-        <a class="btn btn-outline-secondary disabled" href="@actions.PdfUrl" aria-disabled="true" tabindex="-1">Download PDF</a>
-    </span>
-    <span class="d-inline-block" title="@ResultActionsViewModel.ComingSoon">
-        <a class="btn btn-outline-secondary disabled" href="@actions.TradesCsvUrl" aria-disabled="true" tabindex="-1">Download trades CSV</a>
-    </span>
+    @* No download attribute: on a refused request the route answers with an HTML page that must be shown, not saved. *@
+    <a class="btn btn-outline-primary" href="@actions.PdfUrl">Download PDF</a>
+    <a class="btn btn-outline-primary" href="@actions.TradesCsvUrl">Download trades CSV</a>
     @if (actions.MonteCarloUrl is not null)
     {
         <a class="btn btn-outline-primary" href="@actions.MonteCarloUrl">Run Monte Carlo</a>
