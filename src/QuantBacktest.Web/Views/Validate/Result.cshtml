@@ -1,0 +1,185 @@
+@model ValidateResultViewModel
+@{
+    ViewData["Title"] = $"{Model.Symbol} · Validate";
+    var heatmap = Model.Heatmap;
+    var charts = Model.Charts;
+    var best = Model.Best;
+}
+
+<div class="d-flex flex-wrap align-items-start justify-content-between gap-2 mb-3">
+    <div class="qb-min-0">
+        <h1 class="h3 mb-1 text-break">@Model.Symbol · @Model.StrategyName</h1>
+        <p class="text-body-secondary mb-0">@Model.Timeframe · @Model.Period · @Model.MetricLabel · @Model.TrainShare</p>
+    </div>
+    <button type="button" class="btn btn-outline-primary" data-copy-link="@Model.Permalink"
+            aria-controls="permalink-fallback">Copy link</button>
+</div>
+
+@* Shown by backtest-form.js when the clipboard is unavailable (non-secure context, e.g. Docker accessed by IP). *@
+<div class="mb-3" id="permalink-fallback" data-copy-link-fallback hidden>
+    <label class="form-label small text-body-secondary" for="permalink-input">Copy this link:</label>
+    <input class="form-control form-control-sm" id="permalink-input" type="text" readonly value="@Model.Permalink" />
+</div>
+
+<nav class="d-flex flex-wrap gap-2 mb-3" aria-label="Validation actions">
+    <a class="btn btn-primary" href="@Model.EditSettingsUrl">Edit settings</a>
+    @if (Model.TestResultUrl is not null)
+    {
+        <a class="btn btn-outline-primary" href="@Model.TestResultUrl">Open the test backtest</a>
+    }
+    <a class="btn btn-outline-primary" href="@Model.FullHeatmapUrl">Open the full training heatmap</a>
+</nav>
+
+<div class="alert alert-info" role="note">@ValidateResultViewModel.WarmUpNote</div>
+
+@if (best is null)
+{
+    <div class="alert alert-warning" role="status">@ValidateResultViewModel.NoBestMessage</div>
+}
+
+<div class="row g-3">
+    <div class="col-12 col-lg-6">
+        <section class="qb-panel h-100">
+            <h2 class="h5">Split</h2>
+            <dl class="row mb-0 qb-validate-list">
+                @foreach (var row in Model.Split)
+                {
+                    <dt class="col-12 col-sm-6 fw-normal text-body-secondary">@row.Label</dt>
+                    <dd class="col-12 col-sm-6 num mb-1">@row.Value</dd>
+                }
+            </dl>
+        </section>
+    </div>
+
+    <div class="col-12 col-lg-6">
+        <section class="qb-panel h-100">
+            <h2 class="h5">Best parameters on the training period</h2>
+            @if (best is null)
+            {
+                <p class="text-body-secondary mb-0">None: nothing was tested.</p>
+            }
+            else
+            {
+                <dl class="row mb-0 qb-validate-list">
+                    @foreach (var row in best.Parameters)
+                    {
+                        <dt class="col-12 col-sm-6 fw-normal text-body-secondary">@row.Label</dt>
+                        <dd class="col-12 col-sm-6 num mb-1">@row.Value</dd>
+                    }
+                    <dt class="col-12 col-sm-6 fw-normal text-body-secondary">@Model.MetricLabel</dt>
+                    <dd class="col-12 col-sm-6 num mb-1">@best.ValueText</dd>
+                    <dt class="col-12 col-sm-6 fw-normal text-body-secondary">@HeatmapViewModel.TradesLabel</dt>
+                    <dd class="col-12 col-sm-6 num mb-1">@best.TradesText</dd>
+                </dl>
+                @if (best.FewTradesNote is not null)
+                {
+                    <p class="small text-body-secondary mt-2 mb-0">@best.FewTradesNote</p>
+                }
+            }
+        </section>
+    </div>
+
+    @if (best is not null)
+    {
+        <div class="col-12 col-lg-6">
+            <section class="qb-panel h-100">
+                <h2 class="h5">Train vs test</h2>
+                <p class="small text-body-secondary">@Model.Reading</p>
+                <div class="table-responsive">
+                    <table class="table table-sm mb-0">
+                        <thead>
+                            <tr>
+                                <th scope="col">Metric</th>
+                                <th scope="col" class="num">@ValidateResultViewModel.TrainColumn</th>
+                                <th scope="col" class="num">@ValidateResultViewModel.TestColumn</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var row in Model.Metrics)
+                            {
+                                <tr class="@(row.IsOptimized ? "table-active" : null)">
+                                    <th scope="row" class="fw-normal">
+                                        @row.Label
+                                        @if (row.IsOptimized)
+                                        {
+                                            <span class="visually-hidden">(@ValidateResultViewModel.OptimizedNote)</span>
+                                        }
+                                    </th>
+                                    <td class="num @row.TrainTone">@row.Train</td>
+                                    <td class="num @row.TestTone">@row.Test</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+                @if (Model.TestHasNoTrades)
+                {
+                    <p class="small text-body-secondary mt-2 mb-0">@ResultTradesViewModel.EmptyMessage</p>
+                }
+            </section>
+        </div>
+
+        <div class="col-12 col-lg-6">
+            <section class="qb-panel h-100">
+                <h2 class="h5">Equity</h2>
+                <noscript>
+                    <p class="text-body-secondary">JavaScript is off: the curves are not drawn. The table gives the final equity of each period.</p>
+                </noscript>
+                <h3 class="h6">Training period</h3>
+                <div class="qb-chart mb-3">
+                    <canvas id="@ValidateChartsViewModel.TrainCanvasId" role="img" aria-label="@charts.TrainSummary"></canvas>
+                </div>
+                <h3 class="h6">Test period</h3>
+                <div class="qb-chart mb-2">
+                    <canvas id="@ValidateChartsViewModel.TestCanvasId" role="img" aria-label="@charts.TestSummary"></canvas>
+                </div>
+                <p class="small text-body-secondary mb-0">@Model.CapitalNote</p>
+            </section>
+        </div>
+    }
+
+    <div class="col-12">
+        <section class="qb-panel">
+            <h2 class="h5">Training heatmap</h2>
+            <partial name="_Heatmap" model="heatmap" />
+
+            @* The only inline script allowed (P4-U16): data, never code. The serializer escapes < > &. *@
+            <script type="application/json" id="@ValidateChartsViewModel.DataId">@Html.Raw(charts.Json)</script>
+        </section>
+    </div>
+
+    <div class="col-12 col-lg-6">
+        <section class="qb-panel h-100">
+            <h2 class="h5">Grid</h2>
+            <dl class="row mb-0 qb-validate-list">
+                @foreach (var row in Model.Grid)
+                {
+                    <dt class="col-12 col-sm-6 fw-normal text-body-secondary">@row.Label</dt>
+                    <dd class="col-12 col-sm-6 num mb-1">@row.Value</dd>
+                }
+            </dl>
+        </section>
+    </div>
+
+    <div class="col-12 col-lg-6">
+        <section class="qb-panel h-100">
+            <h2 class="h5">Settings</h2>
+            <dl class="row mb-0 qb-validate-list">
+                @foreach (var row in Model.Execution)
+                {
+                    <dt class="col-12 col-sm-6 fw-normal text-body-secondary">@row.Label</dt>
+                    <dd class="col-12 col-sm-6 num mb-1">@row.Value</dd>
+                }
+            </dl>
+        </section>
+    </div>
+</div>
+
+@section Scripts {
+    <script type="module" src="~/js/backtest-form.js" asp-append-version="true"></script>
+    <script type="module" src="~/js/table-sort.js" asp-append-version="true"></script>
+    @* Chart.js and its matrix plugin are UMD builds, loaded as classic scripts before the (deferred) module. *@
+    <script src="~/lib/chart.js/chart.umd.min.js"></script>
+    <script src="~/lib/chartjs-chart-matrix/chartjs-chart-matrix.min.js"></script>
+    <script type="module" src="~/js/validate-charts.js" asp-append-version="true"></script>
+}

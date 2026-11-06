@@ -347,3 +347,16 @@
 .qb-heat-table th {
     white-space: normal;
 }
+
+/* Validate page only: its value lists (split, best parameters, grid, settings) may wrap a value and, below 576 px,
+   put it under its label, left-aligned, so "2018-01-01 to 2022-01-07 (1050 bars)" stays inside its card at 360 px.
+   ".qb-validate-list dd" outweighs ".num"; the shared ".num" rule is unchanged for every other page. */
+.qb-validate-list dd {
+    white-space: normal;
+}
+
+@media (max-width: 575.98px) {
+    .qb-validate-list dd {
+        text-align: left;
+    }
+}

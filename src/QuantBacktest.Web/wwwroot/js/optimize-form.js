@@ -1,6 +1,7 @@
 // Heatmap form (P4-X2). The server renders a working form (selected strategy, its axes and ranges) and stays the
 // authority on every rule: this module only refines it. Ranges, defaults and the cell limit come from data-* attributes.
 // Shared settings behaviour (dates, ]min, max] ranges, one submission with a spinner): backtest-form.js.
+// initSweepForm is exported for the train/test form (validate-form.js), which is the heatmap form plus one field.
 import { initSettings } from './backtest-form.js';
 
 // The epsilon of O1 and of ParameterSweepService.BuildAxis (Engine/ParameterSweepService.cs:162).
@@ -8,7 +9,7 @@ const axisEpsilon = 1e-9;
 
 const form = document.getElementById('optimize-form');
 if (form) {
-    init(form);
+    initSweepForm(form);
 }
 
 // Values of an axis, counted exactly as the service counts them: Math.Floor(((max - min) / step) + 1e-9) + 1.
@@ -16,7 +17,7 @@ export function axisValueCount(min, max, step) {
     return Math.floor(((max - min) / step) + axisEpsilon) + 1;
 }
 
-function init(form) {
+export function initSweepForm(form) {
     const strategy = form.elements.namedItem('strategy');
     const timeframe = form.elements.namedItem('tf');
     const maxCells = Number(form.dataset.maxCells);

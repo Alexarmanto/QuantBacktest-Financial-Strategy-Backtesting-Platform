@@ -63,9 +63,11 @@ internal sealed record HeatmapViewModel(
     public const string UndefinedNote = "Metric undefined (n/a).";
     public const string BestNote = "Best cell.";
 
-    // P4-X2, word for word.
-    public const string OptimisticNote =
-        "The best cell is optimistic by construction: validate it on unseen data (Validate page).";
+    // P4-X2, word for word. The result page prints "Validate page" as a link to the prefilled train/test form.
+    public const string OptimisticNoteStart = "The best cell is optimistic by construction: validate it on unseen data (";
+    public const string OptimisticNoteLink = "Validate page";
+    public const string OptimisticNoteEnd = ").";
+    public const string OptimisticNote = OptimisticNoteStart + OptimisticNoteLink + OptimisticNoteEnd;
 
     public const string IsolatedPeakBanner =
         "Isolated peak: the best result is much better than its neighbours, a classic sign of overfitting.";
@@ -76,6 +78,15 @@ internal sealed record HeatmapViewModel(
     public const string FewTradesLegend = "Fewer than 5 trades";
     public const string BestLegend = "Best cell";
     public const string TradesLabel = "Trades";
+
+    /// <summary>
+    /// The object serialised into <see cref="Json"/>: the train/test page nests it in its single JSON block, so
+    /// heatmap.js receives exactly what the heatmap page gives it.
+    /// </summary>
+    public object Payload { get; init; } = new();
+
+    /// <summary>False on the train/test page (linkCells: false): the cells open no backtest and the table has no link column.</summary>
+    public bool CellsLinked { get; init; } = true;
 
     public const string RankNote = "Colour shows rank on each side of the centre; hover or open the table for exact values.";
     public const string NoteLabel = "Note";
@@ -197,7 +208,11 @@ internal sealed record HeatmapViewModel(
             Farthest(metric, centre, cells, -1),
             SweepMetrics.CentreLabel(metric),
             Farthest(metric, centre, cells, 1),
-            tableRows);
+            tableRows)
+        {
+            Payload = payload,
+            CellsLinked = linkCells,
+        };
     }
 
     /// <summary>Label of a parameter in the catalog (the key itself if the catalog does not know it).</summary>

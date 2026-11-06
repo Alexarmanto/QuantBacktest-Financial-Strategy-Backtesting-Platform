@@ -4,6 +4,8 @@
 // Chart.js and chartjs-chart-matrix are UMD builds loaded just before this module; the matrix plugin registers itself
 // (chartjs-chart-matrix.min.js line 7: e.Chart.register(r,u)), so there is no Chart.register here.
 // Colours and tile sizes: the --qb-heat-* variables of site.css, read through readCssVariables (charts.js).
+// drawHeatmap is exported for the train/test page (validate-charts.js), whose single JSON block nests this payload;
+// importing this module draws nothing on a page without #optimize-heatmap-data.
 import { readCssVariables, readTheme } from './charts.js';
 
 const variables = [
@@ -21,10 +23,10 @@ const noteLineLength = 36;
 const source = document.getElementById('optimize-heatmap-data');
 const canvas = document.getElementById('chart-heatmap');
 if (source && canvas) {
-    init(JSON.parse(source.textContent), canvas);
+    drawHeatmap(JSON.parse(source.textContent), canvas);
 }
 
-function init(payload, canvas) {
+export function drawHeatmap(payload, canvas) {
     const columns = payload.xLabels.length;
     const rows = payload.yLabels.length;
     const state = { colours: null, patterns: null, theme: null };

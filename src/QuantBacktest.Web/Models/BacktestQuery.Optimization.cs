@@ -110,7 +110,25 @@ internal sealed partial record BacktestQuery
     {
         ArgumentNullException.ThrowIfNull(query);
         var reader = new Reader(query);
+        var optimization = ReadOptimization(reader);
 
+        errors = reader.Errors;
+        if (errors.Count > 0)
+        {
+            result = null;
+            return false;
+        }
+
+        result = optimization;
+        return true;
+    }
+
+    /// <summary>
+    /// The heatmap part of a URL, read once for the heatmap (TryParseOptimization) and the train/test page
+    /// (TryParseValidation): settings, strategy, p.*, both axes and the metric. Errors go to the reader.
+    /// </summary>
+    private static OptimizationQuery ReadOptimization(Reader reader)
+    {
         var settings = ReadSettings(
             reader,
             r =>
@@ -135,15 +153,7 @@ internal sealed partial record BacktestQuery
             reader.Error(MetricKey, UnknownMetricMessage);
         }
 
-        errors = reader.Errors;
-        if (errors.Count > 0)
-        {
-            result = null;
-            return false;
-        }
-
-        result = new OptimizationQuery(settings, x, y, metric);
-        return true;
+        return new OptimizationQuery(settings, x, y, metric);
     }
 
     /// <summary>
@@ -182,6 +192,7 @@ internal sealed partial record BacktestQuery
     public bool IsCanonicalOptimization(QueryString received, SweepAxisInput x, SweepAxisInput y, SweepMetric metric) =>
         DecodePairs(received.Value).SequenceEqual(DecodePairs(ToOptimizationQueryString(x, y, metric)));
 
+    // Shared with ToValidationQueryString (BacktestQuery.Validation.cs), which appends train.
     private List<KeyValuePair<string, string>> OptimizationPairs(SweepAxisInput x, SweepAxisInput y, SweepMetric metric)
     {
         ArgumentNullException.ThrowIfNull(x);

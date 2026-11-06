@@ -11,7 +11,7 @@ internal static class Navigation
         new("Backtest", "Backtest", true),
         new("Compare", "Compare", true),
         new("Optimize", "Optimize", true),
-        new("Validate", "Validate", false),
+        new("Validate", "Validate", true),
         new("Strategies", "Strategies", true),
         new("Data", "Data", false),
     ];

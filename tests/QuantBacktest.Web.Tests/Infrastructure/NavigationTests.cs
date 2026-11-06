@@ -14,7 +14,7 @@ public class NavigationTests
             ("Backtest", true),
             ("Compare", true),
             ("Optimize", true),
-            ("Validate", false),
+            ("Validate", true),
             ("Strategies", true),
             ("Data", false));
     }
