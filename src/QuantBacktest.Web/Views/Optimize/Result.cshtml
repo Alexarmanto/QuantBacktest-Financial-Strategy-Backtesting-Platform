@@ -29,7 +29,7 @@
     <div class="alert alert-danger" role="alert">@HeatmapViewModel.IsolatedPeakBanner</div>
 }
 
-<div class="alert alert-info" role="note">@HeatmapViewModel.OptimisticNote</div>
+<div class="alert alert-info" role="note">@HeatmapViewModel.OptimisticNoteStart<a class="alert-link" href="@Model.ValidateUrl">@HeatmapViewModel.OptimisticNoteLink</a>@HeatmapViewModel.OptimisticNoteEnd</div>
 
 @if (!heatmap.HasBest)
 {
@@ -40,77 +40,7 @@
     <div class="col-12">
         <section class="qb-panel">
             <h2 class="h5">Heatmap</h2>
-            <noscript>
-                <p class="text-body-secondary">JavaScript is off: the heatmap is not drawn. The table below lists every cell.</p>
-            </noscript>
-
-            <ul class="qb-heat-legend list-unstyled d-flex flex-wrap align-items-center gap-3 small mb-2" aria-label="Legend">
-                @if (heatmap.ScaleLow is not null || heatmap.ScaleHigh is not null)
-                {
-                    @* Only the sides present in the grid; each end is the real value farthest from the center on that side. *@
-                    <li class="d-flex flex-wrap align-items-center gap-2">
-                        @if (heatmap.ScaleLow is not null)
-                        {
-                            <span class="text-nowrap">@heatmap.ScaleLow</span>
-                            <span class="qb-heat-gradient qb-heat-gradient-low" aria-hidden="true"></span>
-                        }
-                        <span class="text-nowrap">@heatmap.ScaleCentre</span>
-                        @if (heatmap.ScaleHigh is not null)
-                        {
-                            <span class="qb-heat-gradient qb-heat-gradient-high" aria-hidden="true"></span>
-                            <span class="text-nowrap">@heatmap.ScaleHigh</span>
-                        }
-                    </li>
-                }
-                <li class="d-flex align-items-center gap-1"><span class="qb-heat-swatch qb-heat-swatch-null" aria-hidden="true"></span>@HeatmapViewModel.NoValueLegend</li>
-                <li class="d-flex align-items-center gap-1"><span class="qb-heat-swatch qb-heat-swatch-few" aria-hidden="true"></span>@HeatmapViewModel.FewTradesLegend</li>
-                <li class="d-flex align-items-center gap-1"><span class="qb-heat-swatch qb-heat-swatch-best" aria-hidden="true"></span>@HeatmapViewModel.BestLegend</li>
-            </ul>
-
-            @* The grid scrolls inside its frame on narrow screens: one column is at least 16 px, one row 20 px (site.css). *@
-            <div class="qb-heatmap" tabindex="0" aria-label="Heatmap, scrollable">
-                <div class="qb-heatmap-canvas" style="--qb-heat-cols: @heatmap.Columns; --qb-heat-rows: @heatmap.Rows">
-                    <canvas id="@HeatmapViewModel.CanvasId" role="img" aria-label="@heatmap.Summary"></canvas>
-                </div>
-            </div>
-            <p class="small text-body-secondary mt-2 mb-1">@HeatmapViewModel.RankNote</p>
-            <p class="small text-body-secondary mb-2">@heatmap.Reading</p>
-
-            <details>
-                <summary class="small text-body-secondary">Every cell of the heatmap</summary>
-                <div class="table-responsive mt-2">
-                    <table class="table table-sm table-hover mb-0 qb-heat-table" data-sortable>
-                        <thead>
-                            <tr>
-                                <th scope="col" class="num"><button type="button" class="qb-sort" data-sort-type="number">@heatmap.XLabel</button></th>
-                                <th scope="col" class="num"><button type="button" class="qb-sort" data-sort-type="number">@heatmap.YLabel</button></th>
-                                <th scope="col" class="num"><button type="button" class="qb-sort" data-sort-type="number">@heatmap.MetricLabel</button></th>
-                                <th scope="col" class="num"><button type="button" class="qb-sort" data-sort-type="number">@HeatmapViewModel.TradesLabel</button></th>
-                                <th scope="col">@HeatmapViewModel.NoteLabel</th>
-                                <th scope="col">Backtest</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach (var row in heatmap.TableRows)
-                            {
-                                <tr class="@(row.Best ? "table-active" : null)">
-                                    @row.X.Td()
-                                    @row.Y.Td()
-                                    @row.Value.Td()
-                                    @row.Trades.Td()
-                                    <td>@row.Note</td>
-                                    <td>
-                                        @if (row.Url is not null)
-                                        {
-                                            <a href="@row.Url">Open</a>
-                                        }
-                                    </td>
-                                </tr>
-                            }
-                        </tbody>
-                    </table>
-                </div>
-            </details>
+            <partial name="_Heatmap" model="heatmap" />
 
             @* The only inline script allowed (P4-U16): data, never code. The serializer escapes < > &. *@
             <script type="application/json" id="@HeatmapViewModel.DataId">@Html.Raw(heatmap.Json)</script>

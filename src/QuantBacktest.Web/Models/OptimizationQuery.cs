@@ -8,7 +8,8 @@ namespace QuantBacktest.Web.Models;
 /// <summary>
 /// The settings of a heatmap (P4-X2, docs/CONTRACT.md section 6) as they travel in its permalink: the backtest settings
 /// (strategy and the p.* of the parameters that are not swept), the two axes and the metric. Built only by
-/// <see cref="BacktestQuery.TryParseOptimization"/>; the URL is read and written by BacktestQuery.
+/// <see cref="BacktestQuery.TryParseOptimization"/> (or TryParseValidation, which reads the same fields); the URL is
+/// read and written by BacktestQuery.
 /// Only input checks, defaults and unit conversion: IParameterSweepService stays the final authority.
 /// </summary>
 internal sealed class OptimizationQuery
@@ -129,6 +130,16 @@ internal sealed class OptimizationQuery
             [Y.Key!] = BacktestQuery.ParameterValue(y),
         };
         return Settings with { Parameters = parameters };
+    }
+
+    /// <summary>
+    /// The same grid on another period (train/test, P4-X3): only From and To change, with explicit inclusive dates
+    /// (docs/CONTRACT.md section 4, X1). Its ToQueryString() is canonical for /Optimize/Result.
+    /// </summary>
+    public OptimizationQuery WithPeriod(DateOnly from, DateOnly to)
+    {
+        RequireComplete();
+        return new OptimizationQuery(Settings with { From = from, To = to }, X, Y, Metric);
     }
 
     /// <summary>Canonical query string of /Optimize/Result (and of the prefilled form), without the leading "?".</summary>

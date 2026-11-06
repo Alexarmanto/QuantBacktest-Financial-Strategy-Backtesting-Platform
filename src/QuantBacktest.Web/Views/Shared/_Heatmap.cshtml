@@ -1,0 +1,72 @@
+@model HeatmapViewModel
+<noscript>
+                <p class="text-body-secondary">JavaScript is off: the heatmap is not drawn. The table below lists every cell.</p>
+            </noscript>
+
+            <ul class="qb-heat-legend list-unstyled d-flex flex-wrap align-items-center gap-3 small mb-2" aria-label="Legend">
+                @if (Model.ScaleLow is not null || Model.ScaleHigh is not null)
+                {
+                    @* Only the sides present in the grid; each end is the real value farthest from the center on that side. *@
+                    <li class="d-flex flex-wrap align-items-center gap-2">
+                        @if (Model.ScaleLow is not null)
+                        {
+                            <span class="text-nowrap">@Model.ScaleLow</span>
+                            <span class="qb-heat-gradient qb-heat-gradient-low" aria-hidden="true"></span>
+                        }
+                        <span class="text-nowrap">@Model.ScaleCentre</span>
+                        @if (Model.ScaleHigh is not null)
+                        {
+                            <span class="qb-heat-gradient qb-heat-gradient-high" aria-hidden="true"></span>
+                            <span class="text-nowrap">@Model.ScaleHigh</span>
+                        }
+                    </li>
+                }
+                <li class="d-flex align-items-center gap-1"><span class="qb-heat-swatch qb-heat-swatch-null" aria-hidden="true"></span>@HeatmapViewModel.NoValueLegend</li>
+                <li class="d-flex align-items-center gap-1"><span class="qb-heat-swatch qb-heat-swatch-few" aria-hidden="true"></span>@HeatmapViewModel.FewTradesLegend</li>
+                <li class="d-flex align-items-center gap-1"><span class="qb-heat-swatch qb-heat-swatch-best" aria-hidden="true"></span>@HeatmapViewModel.BestLegend</li>
+            </ul>
+
+            @* The grid scrolls inside its frame on narrow screens: one column is at least 16 px, one row 20 px (site.css). *@
+            <div class="qb-heatmap" tabindex="0" aria-label="Heatmap, scrollable">
+                <div class="qb-heatmap-canvas" style="--qb-heat-cols: @Model.Columns; --qb-heat-rows: @Model.Rows">
+                    <canvas id="@HeatmapViewModel.CanvasId" role="img" aria-label="@Model.Summary"></canvas>
+                </div>
+            </div>
+            <p class="small text-body-secondary mt-2 mb-1">@HeatmapViewModel.RankNote</p>
+            <p class="small text-body-secondary mb-2">@Model.Reading</p>
+
+            <details>
+                <summary class="small text-body-secondary">Every cell of the heatmap</summary>
+                <div class="table-responsive mt-2">
+                    <table class="table table-sm table-hover mb-0 qb-heat-table" data-sortable>
+                        <thead>
+                            <tr>
+                                <th scope="col" class="num"><button type="button" class="qb-sort" data-sort-type="number">@Model.XLabel</button></th>
+                                <th scope="col" class="num"><button type="button" class="qb-sort" data-sort-type="number">@Model.YLabel</button></th>
+                                <th scope="col" class="num"><button type="button" class="qb-sort" data-sort-type="number">@Model.MetricLabel</button></th>
+                                <th scope="col" class="num"><button type="button" class="qb-sort" data-sort-type="number">@HeatmapViewModel.TradesLabel</button></th>
+                                <th scope="col">@HeatmapViewModel.NoteLabel</th>
+                                <th scope="col" hidden="@(!Model.CellsLinked)">Backtest</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var row in Model.TableRows)
+                            {
+                                <tr class="@(row.Best ? "table-active" : null)">
+                                    @row.X.Td()
+                                    @row.Y.Td()
+                                    @row.Value.Td()
+                                    @row.Trades.Td()
+                                    <td>@row.Note</td>
+                                    <td hidden="@(!Model.CellsLinked)">
+                                        @if (row.Url is not null)
+                                        {
+                                            <a href="@row.Url">Open</a>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </details>

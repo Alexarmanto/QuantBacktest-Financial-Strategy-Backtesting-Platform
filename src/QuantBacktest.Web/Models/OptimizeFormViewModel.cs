@@ -90,12 +90,14 @@ internal sealed class OptimizeFormViewModel : IFormFields
 
     public string? Error(string key) => _errors.GetValueOrDefault(key);
 
+    /// <param name="extraFieldNames">Fields that a page adds to this form (train on the train/test form): their errors stay on the field.</param>
     public static OptimizeFormViewModel Create(
         IQueryCollection query,
         IReadOnlyList<IStrategy> strategies,
         IReadOnlyList<string> cachedSymbols,
         IReadOnlyList<QueryFieldError> errors,
-        FormAlert? alert)
+        FormAlert? alert,
+        IReadOnlyList<string>? extraFieldNames = null)
     {
         ArgumentNullException.ThrowIfNull(query);
         ArgumentNullException.ThrowIfNull(strategies);
@@ -112,7 +114,8 @@ internal sealed class OptimizeFormViewModel : IFormFields
         var fieldNames = FormSettings.Keys
             .Concat([BacktestQuery.StrategyKey, BacktestQuery.MetricKey])
             .Concat(selected is null ? [] : BacktestQuery.SweepKeys)
-            .Concat((selected?.Parameters ?? []).Select(d => BacktestQuery.ParameterPrefix + d.Key));
+            .Concat((selected?.Parameters ?? []).Select(d => BacktestQuery.ParameterPrefix + d.Key))
+            .Concat(extraFieldNames ?? []);
         var (fieldErrors, otherErrors) = FormSettings.SplitErrors(errors, fieldNames);
 
         OptimizeStrategyOption ToOption(IStrategy strategy)

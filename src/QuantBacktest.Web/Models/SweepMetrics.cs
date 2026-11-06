@@ -23,6 +23,25 @@ internal static class SweepMetrics
         _ => throw new ArgumentOutOfRangeException(nameof(metric), metric, "Unknown metric."),
     };
 
+    /// <summary>
+    /// The field of a result that a heatmap metric names (as Engine/ParameterSweepService reads it for a cell), so the
+    /// train/test page can show the optimised metric of each period. Picks a field, never computes one.
+    /// </summary>
+    public static double? Read(SweepMetric metric, PerformanceMetrics metrics)
+    {
+        ArgumentNullException.ThrowIfNull(metrics);
+        return metric switch
+        {
+            SweepMetric.SharpeRatio => metrics.SharpeRatio,
+            SweepMetric.SortinoRatio => metrics.SortinoRatio,
+            SweepMetric.CalmarRatio => metrics.CalmarRatio,
+            SweepMetric.CumulativeReturn => metrics.CumulativeReturn,
+            SweepMetric.AnnualizedReturn => metrics.AnnualizedReturn,
+            SweepMetric.ProfitFactor => metrics.ProfitFactor,
+            _ => throw new ArgumentOutOfRangeException(nameof(metric), metric, "Unknown metric."),
+        };
+    }
+
     public static bool IsReturn(SweepMetric metric) =>
         metric is SweepMetric.CumulativeReturn or SweepMetric.AnnualizedReturn;
 

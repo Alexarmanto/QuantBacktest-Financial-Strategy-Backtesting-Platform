@@ -6,7 +6,8 @@ namespace QuantBacktest.Web.Models;
 
 /// <summary>
 /// The heatmap result page (P4-X2): what was swept, with which settings, the permalink, the link back to the prefilled
-/// form, and the heatmap itself. The period is the requested one: SweepResult carries no bars (decision g-12).
+/// form, the heatmap itself, and the link of its optimistic note to the train/test form prefilled with the same grid
+/// (P4-X2 "validate it on unseen data (Validate page)", P4-X3). The period is the requested one: SweepResult carries no bars (decision g-12).
 /// </summary>
 internal sealed record OptimizeResultViewModel(
     string Symbol,
@@ -19,7 +20,8 @@ internal sealed record OptimizeResultViewModel(
     IReadOnlyList<SettingRow> Execution,
     string Permalink,
     string EditSettingsUrl,
-    HeatmapViewModel Heatmap)
+    HeatmapViewModel Heatmap,
+    string ValidateUrl)
 {
     public const string FormPath = "/Optimize";
     public const string ResultPath = "/Optimize/Result";
@@ -57,10 +59,12 @@ internal sealed record OptimizeResultViewModel(
             ResultHeaderViewModel.ExecutionRows(settings.ToBacktestRequest().Execution),
             permalink,
             pathBase + FormPath + "?" + query.ToQueryString(),
-            HeatmapViewModel.Create(result, strategy, query, pathBase));
+            HeatmapViewModel.Create(result, strategy, query, pathBase),
+            pathBase + ValidateResultViewModel.FormPath + "?"
+                + settings.ToValidationQueryString(query.X, query.Y, query.Metric, BacktestQuery.DefaultTrainPercent));
     }
 
-    private static SettingRow Axis(string name, IStrategy strategy, SweepAxisInput axis)
+    internal static SettingRow Axis(string name, IStrategy strategy, SweepAxisInput axis)
     {
         var label = strategy.Parameters.FirstOrDefault(d => d.Key == axis.Key)?.Label ?? axis.Key!;
         return new SettingRow(
@@ -68,7 +72,7 @@ internal sealed record OptimizeResultViewModel(
             $"{BacktestQuery.FormatNumber(axis.Min)} to {BacktestQuery.FormatNumber(axis.Max)}, step {BacktestQuery.FormatNumber(axis.Step)}");
     }
 
-    private static string FormatPeriod(DateOnly? from, DateOnly? to) => (from, to) switch
+    internal static string FormatPeriod(DateOnly? from, DateOnly? to) => (from, to) switch
     {
         (null, null) => WholePeriod,
         ({ } start, null) => $"From {Format(start)}",

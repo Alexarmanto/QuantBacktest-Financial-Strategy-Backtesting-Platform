@@ -1,0 +1,42 @@
+@model ValidateFormViewModel
+@{
+    ViewData["Title"] = "Validate";
+    var sweep = Model.Sweep;
+    var train = ValidateFormViewModel.Train;
+}
+
+<h1 class="h3 mb-3">Validate a strategy on unseen data</h1>
+
+<partial name="_FormAlerts" model="sweep" />
+
+@* The heatmap form (same partials, same model) plus the training share (P4-X3). data-max-cells is Conventions.MaxSweepCells. *@
+<form id="validate-form" class="qb-panel" method="get" asp-controller="Validate" asp-action="Result"
+      data-max-cells="@ValidateFormViewModel.MaxCells">
+    <div class="row g-3">
+        <partial name="_MarketFields" model="sweep" />
+        <partial name="~/Views/Optimize/_SweepFields.cshtml" model="sweep" />
+
+        <div class="col-6 col-md-3">
+            <label class="form-label" for="@train.Key">@train.Label</label>
+            @train.Input(Model.TrainValue, Model.TrainError is not null)
+            <div class="form-text">@train.Help</div>
+            @if (Model.TrainError is not null)
+            {
+                <div class="invalid-feedback">@Model.TrainError</div>
+            }
+        </div>
+
+        <partial name="_ExecutionFields" model="sweep" />
+    </div>
+
+    <div class="mt-4">
+        <button type="submit" class="btn btn-primary" data-submit>
+            <span class="spinner-border spinner-border-sm me-1" aria-hidden="true" hidden data-spinner></span>
+            <span data-submit-label>Run validation</span>
+        </button>
+    </div>
+</form>
+
+@section Scripts {
+    <script type="module" src="~/js/validate-form.js" asp-append-version="true"></script>
+}

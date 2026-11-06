@@ -1,7 +1,5 @@
-using System.Globalization;
 using QuantBacktest.Core.Abstractions;
 using QuantBacktest.Core.Models;
-using QuantBacktest.Web.Infrastructure;
 
 namespace QuantBacktest.Web.Models;
 
@@ -61,26 +59,9 @@ internal sealed record BacktestResultViewModel(
         _ => throw new ArgumentOutOfRangeException(nameof(timeframe), timeframe, "Unknown timeframe."),
     };
 
-    /// <summary>The 13 fields of PerformanceMetrics, in the order of the record (M1 to M12). Only returns are coloured.</summary>
+    /// <summary>The 13 fields of PerformanceMetrics (MetricDefinitions, M1 to M12). Only returns are coloured.</summary>
     private static List<MetricRow> CreateMetricRows(PerformanceMetrics strategy, PerformanceMetrics benchmark, Timeframe timeframe) =>
-    [
-        new("Final equity", DisplayFormat.Money(strategy.FinalEquity), DisplayFormat.Money(benchmark.FinalEquity)),
-        Return("Cumulative return", strategy.CumulativeReturn, benchmark.CumulativeReturn),
-        Return("Annualized return", strategy.AnnualizedReturn, benchmark.AnnualizedReturn),
-        Return(AverageReturnLabel(timeframe), strategy.AverageReturnPerPeriod, benchmark.AverageReturnPerPeriod),
-        new("Annualized volatility", DisplayFormat.Percent(strategy.AnnualizedVolatility), DisplayFormat.Percent(benchmark.AnnualizedVolatility)),
-        new("Sharpe ratio", DisplayFormat.Ratio(strategy.SharpeRatio), DisplayFormat.Ratio(benchmark.SharpeRatio)),
-        new("Sortino ratio", DisplayFormat.Ratio(strategy.SortinoRatio), DisplayFormat.Ratio(benchmark.SortinoRatio)),
-        new("Calmar ratio", DisplayFormat.Ratio(strategy.CalmarRatio), DisplayFormat.Ratio(benchmark.CalmarRatio)),
-        new("Max drawdown", DisplayFormat.Percent(strategy.MaxDrawdown), DisplayFormat.Percent(benchmark.MaxDrawdown)),
-        new("Trades", FormatCount(strategy.TradeCount), FormatCount(benchmark.TradeCount)),
-        new("Win rate", DisplayFormat.Percent(strategy.WinRate), DisplayFormat.Percent(benchmark.WinRate)),
-        new("Profit factor", DisplayFormat.Ratio(strategy.ProfitFactor), DisplayFormat.Ratio(benchmark.ProfitFactor)),
-        new("Exposure", DisplayFormat.Percent(strategy.Exposure), DisplayFormat.Percent(benchmark.Exposure)),
-    ];
-
-    private static MetricRow Return(string label, double strategy, double benchmark) =>
-        new(label, DisplayFormat.Percent(strategy), DisplayFormat.Percent(benchmark), ValueTone.Of(strategy), ValueTone.Of(benchmark));
-
-    private static string FormatCount(int count) => count.ToString(CultureInfo.InvariantCulture);
+        MetricDefinitions.For(timeframe)
+            .Select(d => new MetricRow(d.Label, d.Format(strategy), d.Format(benchmark), d.Tone(strategy), d.Tone(benchmark)))
+            .ToList();
 }
