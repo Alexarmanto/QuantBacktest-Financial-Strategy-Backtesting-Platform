@@ -7,13 +7,13 @@ namespace QuantBacktest.Web.Tests.Infrastructure;
 
 public class NavigationTests
 {
-    [Fact] // P4-U13: the six links in order; Compare is enabled by PR 7, the pages still to come stay disabled
-    public void Navigation_CompareEnabled_OthersUnchanged()
+    [Fact] // P4-U13: the six links in order; Optimize is enabled by PR 8, the pages still to come stay disabled
+    public void Navigation_OptimizeEnabled_OthersUnchanged()
     {
         Navigation.Items.Select(i => (i.Label, i.Enabled)).Should().Equal(
             ("Backtest", true),
             ("Compare", true),
-            ("Optimize", false),
+            ("Optimize", true),
             ("Validate", false),
             ("Strategies", true),
             ("Data", false));

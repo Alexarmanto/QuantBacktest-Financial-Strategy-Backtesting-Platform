@@ -1,0 +1,155 @@
+@model OptimizeResultViewModel
+@{
+    ViewData["Title"] = $"{Model.Symbol} · Optimize";
+    var heatmap = Model.Heatmap;
+}
+
+<div class="d-flex flex-wrap align-items-start justify-content-between gap-2 mb-3">
+    <div class="qb-min-0">
+        <h1 class="h3 mb-1 text-break">@Model.Symbol · @Model.StrategyName</h1>
+        <p class="text-body-secondary mb-0">@Model.Timeframe · @Model.Period · @Model.MetricLabel</p>
+    </div>
+    <button type="button" class="btn btn-outline-primary" data-copy-link="@Model.Permalink"
+            aria-controls="permalink-fallback">Copy link</button>
+</div>
+
+@* Shown by backtest-form.js when the clipboard is unavailable (non-secure context, e.g. Docker accessed by IP). *@
+<div class="mb-3" id="permalink-fallback" data-copy-link-fallback hidden>
+    <label class="form-label small text-body-secondary" for="permalink-input">Copy this link:</label>
+    <input class="form-control form-control-sm" id="permalink-input" type="text" readonly value="@Model.Permalink" />
+</div>
+
+<nav class="d-flex flex-wrap gap-2 mb-3" aria-label="Optimization actions">
+    <a class="btn btn-primary" href="@Model.EditSettingsUrl">Edit settings</a>
+</nav>
+
+@if (heatmap.IsIsolatedPeak)
+{
+    @* P4-X2: "bandeau rouge si IsIsolatedPeak" (PART-4 wins over the green / red rule, decision g-6). *@
+    <div class="alert alert-danger" role="alert">@HeatmapViewModel.IsolatedPeakBanner</div>
+}
+
+<div class="alert alert-info" role="note">@HeatmapViewModel.OptimisticNote</div>
+
+@if (!heatmap.HasBest)
+{
+    <div class="alert alert-warning" role="status">@HeatmapViewModel.NoBestMessage</div>
+}
+
+<div class="row g-3">
+    <div class="col-12">
+        <section class="qb-panel">
+            <h2 class="h5">Heatmap</h2>
+            <noscript>
+                <p class="text-body-secondary">JavaScript is off: the heatmap is not drawn. The table below lists every cell.</p>
+            </noscript>
+
+            <ul class="qb-heat-legend list-unstyled d-flex flex-wrap align-items-center gap-3 small mb-2" aria-label="Legend">
+                @if (heatmap.ScaleLow is not null || heatmap.ScaleHigh is not null)
+                {
+                    @* Only the sides present in the grid; each end is the real value farthest from the center on that side. *@
+                    <li class="d-flex flex-wrap align-items-center gap-2">
+                        @if (heatmap.ScaleLow is not null)
+                        {
+                            <span class="text-nowrap">@heatmap.ScaleLow</span>
+                            <span class="qb-heat-gradient qb-heat-gradient-low" aria-hidden="true"></span>
+                        }
+                        <span class="text-nowrap">@heatmap.ScaleCentre</span>
+                        @if (heatmap.ScaleHigh is not null)
+                        {
+                            <span class="qb-heat-gradient qb-heat-gradient-high" aria-hidden="true"></span>
+                            <span class="text-nowrap">@heatmap.ScaleHigh</span>
+                        }
+                    </li>
+                }
+                <li class="d-flex align-items-center gap-1"><span class="qb-heat-swatch qb-heat-swatch-null" aria-hidden="true"></span>@HeatmapViewModel.NoValueLegend</li>
+                <li class="d-flex align-items-center gap-1"><span class="qb-heat-swatch qb-heat-swatch-few" aria-hidden="true"></span>@HeatmapViewModel.FewTradesLegend</li>
+                <li class="d-flex align-items-center gap-1"><span class="qb-heat-swatch qb-heat-swatch-best" aria-hidden="true"></span>@HeatmapViewModel.BestLegend</li>
+            </ul>
+
+            @* The grid scrolls inside its frame on narrow screens: one column is at least 16 px, one row 20 px (site.css). *@
+            <div class="qb-heatmap" tabindex="0" aria-label="Heatmap, scrollable">
+                <div class="qb-heatmap-canvas" style="--qb-heat-cols: @heatmap.Columns; --qb-heat-rows: @heatmap.Rows">
+                    <canvas id="@HeatmapViewModel.CanvasId" role="img" aria-label="@heatmap.Summary"></canvas>
+                </div>
+            </div>
+            <p class="small text-body-secondary mt-2 mb-1">@HeatmapViewModel.RankNote</p>
+            <p class="small text-body-secondary mb-2">@heatmap.Reading</p>
+
+            <details>
+                <summary class="small text-body-secondary">Every cell of the heatmap</summary>
+                <div class="table-responsive mt-2">
+                    <table class="table table-sm table-hover mb-0 qb-heat-table" data-sortable>
+                        <thead>
+                            <tr>
+                                <th scope="col" class="num"><button type="button" class="qb-sort" data-sort-type="number">@heatmap.XLabel</button></th>
+                                <th scope="col" class="num"><button type="button" class="qb-sort" data-sort-type="number">@heatmap.YLabel</button></th>
+                                <th scope="col" class="num"><button type="button" class="qb-sort" data-sort-type="number">@heatmap.MetricLabel</button></th>
+                                <th scope="col" class="num"><button type="button" class="qb-sort" data-sort-type="number">@HeatmapViewModel.TradesLabel</button></th>
+                                <th scope="col">@HeatmapViewModel.NoteLabel</th>
+                                <th scope="col">Backtest</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var row in heatmap.TableRows)
+                            {
+                                <tr class="@(row.Best ? "table-active" : null)">
+                                    @row.X.Td()
+                                    @row.Y.Td()
+                                    @row.Value.Td()
+                                    @row.Trades.Td()
+                                    <td>@row.Note</td>
+                                    <td>
+                                        @if (row.Url is not null)
+                                        {
+                                            <a href="@row.Url">Open</a>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </details>
+
+            @* The only inline script allowed (P4-U16): data, never code. The serializer escapes < > &. *@
+            <script type="application/json" id="@HeatmapViewModel.DataId">@Html.Raw(heatmap.Json)</script>
+        </section>
+    </div>
+
+    <div class="col-12 col-lg-6">
+        <section class="qb-panel h-100">
+            <h2 class="h5">Grid</h2>
+            <dl class="row mb-0">
+                @foreach (var row in Model.Axes.Concat(Model.FixedParameters))
+                {
+                    <dt class="col-6 fw-normal text-body-secondary">@row.Label</dt>
+                    <dd class="col-6 num mb-1">@row.Value</dd>
+                }
+            </dl>
+        </section>
+    </div>
+
+    <div class="col-12 col-lg-6">
+        <section class="qb-panel h-100">
+            <h2 class="h5">Settings</h2>
+            <dl class="row mb-0">
+                @foreach (var row in Model.Execution)
+                {
+                    <dt class="col-6 fw-normal text-body-secondary">@row.Label</dt>
+                    <dd class="col-6 num mb-1">@row.Value</dd>
+                }
+            </dl>
+        </section>
+    </div>
+</div>
+
+@section Scripts {
+    <script type="module" src="~/js/backtest-form.js" asp-append-version="true"></script>
+    <script type="module" src="~/js/table-sort.js" asp-append-version="true"></script>
+    @* Chart.js ships as UMD only: classic scripts define globalThis.Chart, then the matrix plugin registers itself on it
+       (chartjs-chart-matrix.min.js line 7: e.Chart.register(r,u)), before the (deferred) module runs. *@
+    <script src="~/lib/chart.js/chart.umd.min.js"></script>
+    <script src="~/lib/chartjs-chart-matrix/chartjs-chart-matrix.min.js"></script>
+    <script type="module" src="~/js/heatmap.js" asp-append-version="true"></script>
+}

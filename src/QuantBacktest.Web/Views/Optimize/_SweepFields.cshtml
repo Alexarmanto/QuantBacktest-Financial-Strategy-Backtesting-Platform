@@ -1,0 +1,99 @@
+@model OptimizeFormViewModel
+@{
+    // Strategy, axes, other parameters and metric of a heatmap form (P4-X2). Reused by the train/test form (P4-X3).
+    // Every data-* attribute is built by SweepAxisField / SweepRangeInput (TagBuilder) or always has a value.
+    void FieldError(string? message)
+    {
+        if (message is not null)
+        {
+            <div class="invalid-feedback">@message</div>
+        }
+    }
+}
+<div class="col-12 col-md-8">
+    <label class="form-label" for="strategy">Strategy</label>
+    <select class="form-select @(Model.Error(BacktestQuery.StrategyKey) is null ? "" : "is-invalid")"
+            id="strategy" name="@BacktestQuery.StrategyKey" required>
+        @foreach (var (group, options) in new[] { ("Built-in", Model.BuiltInStrategies), ("Custom", Model.CustomStrategies) })
+        {
+            if (options.Count == 0)
+            {
+                continue;
+            }
+            <optgroup label="@group">
+                @foreach (var option in options)
+                {
+                    <option value="@option.Id" selected="@option.IsSelected" disabled="@(option.Ineligible is not null)"
+                            data-timeframes="@option.Timeframes">@option.Label</option>
+                }
+            </optgroup>
+        }
+    </select>
+    <div class="form-text">A heatmap needs a strategy with at least 2 parameters.</div>
+    @{ FieldError(Model.Error(BacktestQuery.StrategyKey)); }
+</div>
+
+<div class="col-12 col-md-4">
+    <label class="form-label" for="metric">Metric</label>
+    <select class="form-select @(Model.Error(BacktestQuery.MetricKey) is null ? "" : "is-invalid")"
+            id="metric" name="@BacktestQuery.MetricKey">
+        @foreach (var metric in Model.Metrics)
+        {
+            <option value="@metric.Token" selected="@metric.IsSelected">@metric.Label</option>
+        }
+    </select>
+    <div class="form-text">Higher is better for every metric.</div>
+    @{ FieldError(Model.Error(BacktestQuery.MetricKey)); }
+</div>
+
+@foreach (var option in Model.AllStrategies.Where(o => o.X is not null))
+{
+    @* Only the selected strategy's inputs are enabled: a disabled fieldset submits nothing. *@
+    <fieldset class="col-12" data-strategy-fields="@option.Id" disabled="@(!option.IsSelected)" hidden="@(!option.IsSelected)">
+        <legend class="h6">Axes of @option.Name</legend>
+        <div class="row g-3">
+            @foreach (var axis in new[] { option.X!, option.Y! })
+            {
+                <div class="col-12 col-md-6" data-axis-group="@axis.Name">
+                    <label class="form-label" for="@axis.Id">@axis.Axis axis parameter</label>
+                    @axis.Select()
+                    @{ FieldError(axis.Error); }
+                    <div class="row g-2 mt-1">
+                        @foreach (var range in axis.Ranges)
+                        {
+                            <div class="col-4">
+                                <label class="form-label small" for="@range.Id">@range.Label</label>
+                                @range.Input()
+                                @{ FieldError(range.Error); }
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
+            <div class="col-12">
+                <div class="form-text" aria-live="polite" aria-atomic="true" data-cell-count></div>
+            </div>
+        </div>
+
+        @if (option.HasOtherParameters)
+        {
+            <p class="h6 mt-3">Other parameters (fixed)</p>
+        }
+        <div class="row g-3">
+            @foreach (var parameter in option.Parameters)
+            {
+                var field = parameter.Field;
+                var id = $"{option.Id}-{field.Name}".Replace('.', '-');
+                @* The parameters on an axis are replaced by every cell: their input is disabled (not sent) and hidden. *@
+                <fieldset class="col-6 col-md-3" data-parameter-key="@parameter.Key" disabled="@parameter.IsSwept" hidden="@parameter.IsSwept">
+                    <label class="form-label" for="@id" title="@field.Description">@field.Label</label>
+                    <input class="form-control num @(field.Error is null ? "" : "is-invalid")" type="number"
+                           id="@id" name="@field.Name" value="@field.Value"
+                           min="@field.Min" max="@field.Max" step="@field.Step" title="@field.Description" />
+                    <div class="form-text">@field.Min to @field.Max</div>
+                    @{ FieldError(field.Error); }
+                </fieldset>
+            }
+        </div>
+    </fieldset>
+}

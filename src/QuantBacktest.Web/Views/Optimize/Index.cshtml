@@ -1,0 +1,29 @@
+@model OptimizeFormViewModel
+@{
+    ViewData["Title"] = "Optimize";
+}
+
+<h1 class="h3 mb-3">Optimize a strategy</h1>
+
+<partial name="_FormAlerts" model="Model" />
+
+@* data-max-cells is Conventions.MaxSweepCells: optimize-form.js counts the cells as the service does (O1). *@
+<form id="optimize-form" class="qb-panel" method="get" asp-controller="Optimize" asp-action="Result"
+      data-max-cells="@OptimizeFormViewModel.MaxCells">
+    <div class="row g-3">
+        <partial name="_MarketFields" model="Model" />
+        <partial name="_SweepFields" model="Model" />
+        <partial name="_ExecutionFields" model="Model" />
+    </div>
+
+    <div class="mt-4">
+        <button type="submit" class="btn btn-primary" data-submit>
+            <span class="spinner-border spinner-border-sm me-1" aria-hidden="true" hidden data-spinner></span>
+            <span data-submit-label>Run optimization</span>
+        </button>
+    </div>
+</form>
+
+@section Scripts {
+    <script type="module" src="~/js/optimize-form.js" asp-append-version="true"></script>
+}

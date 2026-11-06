@@ -7,9 +7,10 @@ namespace QuantBacktest.Web.Models;
 
 /// <summary>
 /// Action buttons of the result page (P4-U7). Every URL carries the canonical query string of BacktestQuery, so each
-/// page receives exactly the settings of this result. OptimizeUrl is null below 2 strategy parameters (heatmap X, Y);
-/// MonteCarloUrl is null below Conventions.MinTradesForMonteCarlo trades (MC1), and the button is then disabled.
-/// The Optimize route comes with its own PR, which then enables the button; PDF and CSV are served by BacktestController.
+/// page receives exactly the settings of this result. OptimizeUrl (the heatmap form, prefilled) is null below 2 strategy
+/// parameters (heatmap X, Y), and the button is then not shown; MonteCarloUrl is null below
+/// Conventions.MinTradesForMonteCarlo trades (MC1), and the button is then disabled. PDF and CSV are served by
+/// BacktestController, the heatmap by OptimizeController.
 /// </summary>
 internal sealed record ResultActionsViewModel(
     string EditSettingsUrl,
@@ -18,8 +19,6 @@ internal sealed record ResultActionsViewModel(
     string? MonteCarloUrl,
     string? OptimizeUrl)
 {
-    public const string ComingSoon = "Coming soon";
-
     public static readonly string MonteCarloNeedsTrades =
         $"Needs at least {Conventions.MinTradesForMonteCarlo.ToString(CultureInfo.InvariantCulture)} trades";
 

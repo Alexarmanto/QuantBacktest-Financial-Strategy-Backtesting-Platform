@@ -2,8 +2,9 @@
 // prepared by ResultChartsViewModel in #result-charts-data (drawdowns already negative and in percent, reference lines
 // deduplicated, markers paired with their date and fill price): this module only draws and formats, no finance.
 // Chart.js is the UMD build loaded just before this module (globalThis.Chart).
-// The formatters, line(), spansMoreThanTwoYears(), options() and readTheme() are exported for the other chart modules
-// (monte-carlo-charts.js, compare-charts.js); importing this module draws nothing on a page without #result-charts-data.
+// The formatters, line(), spansMoreThanTwoYears(), options(), readTheme() and readCssVariables() are exported for the
+// other chart modules (monte-carlo-charts.js, compare-charts.js, heatmap.js); importing this module draws nothing on a
+// page without #result-charts-data.
 
 // Formats of DisplayFormat (P4-U14), en-US: $10,120.50, -$10.50, -23%, -1.39%. A value rounded to zero has no sign.
 const money = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', signDisplay: 'negative' });
@@ -248,4 +249,10 @@ export function readTheme() {
         // Comparator curves (compare-charts.js), never green or red: site.css --qb-compare-1 to 5.
         comparison: [1, 2, 3, 4, 5].map(i => read(`--qb-compare-${i}`)),
     };
+}
+
+// Any custom properties of site.css, by name (for example the --qb-heat-* colours of heatmap.js), trimmed.
+export function readCssVariables(names) {
+    const style = getComputedStyle(document.documentElement);
+    return Object.fromEntries(names.map(name => [name, style.getPropertyValue(name).trim()]));
 }
