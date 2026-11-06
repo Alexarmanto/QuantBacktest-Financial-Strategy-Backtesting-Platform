@@ -37,6 +37,29 @@
     --qb-compare-3: var(--qb-series-2);
     --qb-compare-4: var(--qb-series-3);
     --qb-compare-5: var(--qb-series-5);
+
+    /* Optimisation heatmap (P4-X2), read by heatmap.js. Diverging colour by RANK on each side of the centre
+       (HeatmapViewModel.Ranks): amber (below) → slate (centre) → blue (above), no green or red. Contrast on the panel (#121821), WCAG: amber 9.56, blue 5.57, outline 3.88, centre 1.79
+       (kept visible by the outline). No value = diagonal hatch (stripes 8.59 on the panel); fewer than 5 trades = the
+       colour mixed 50 % towards the panel + a dot screen (dots >= 3.97 on every mixed colour); best cell = 3 px white
+       ring + 1 px dark inner line. Hatch and dots are different shapes, never one colour only. Tiles <= 6 px. */
+    --qb-heat-low: #f0b429;
+    --qb-heat-mid: #3a4352;
+    --qb-heat-high: #4c8dff;
+    --qb-heat-panel: var(--qb-surface);
+    --qb-heat-outline: #6b7689;
+    --qb-heat-null: #5c636a;
+    --qb-heat-null-stripe: #adb5bd;
+    --qb-heat-dot: #d6dde6;
+    --qb-heat-best: #ffffff;
+    --qb-heat-best-inner: #0b0f14;
+    --qb-heat-dim-mix: 0.5;
+    --qb-heat-hatch-tile: 6;
+    --qb-heat-dot-tile: 4;
+    /* Share of the side colour for the cell closest to the centre (t = 0): 0.25 keeps it apart from the centre colour
+       (contrast 1.35 blue, 1.58 amber, plus the hue shift; 0.15 gave only 1.19) and leaves 75 % of the range to the
+       ranks. The legend gradients (color-mix 25 %) use the same share. */
+    --qb-heat-min-share: 0.25;
 }
 
 /* Numbers: aligned digits, right-aligned, never wrapped. */
@@ -263,4 +286,64 @@
     .qb-navbar .navbar-collapse .qb-quota {
         margin: 0.5rem 0;
     }
+}
+
+/* Optimisation heatmap (P4-X2): the grid scrolls inside its frame, never the page (360 px). The canvas is at least
+   16 px per column and 20 px per row, plus room for the axes; heatmap.js draws on it. */
+.qb-heatmap {
+    max-width: 100%;
+    overflow-x: auto;
+}
+
+.qb-heatmap-canvas {
+    position: relative;
+    min-width: calc(var(--qb-heat-cols) * 16px + 96px);
+    height: max(240px, calc(var(--qb-heat-rows) * 20px + 72px));
+}
+
+/* Legend: the same encodings as the canvas, each with its text label (heatmap.js uses the same variables). */
+.qb-heat-gradient {
+    display: inline-block;
+    width: 120px;
+    height: 12px;
+    border: 1px solid var(--qb-heat-outline);
+}
+
+/* One gradient per side present in the grid; each starts at the faintest colour heatmap.js gives (min share). */
+.qb-heat-gradient-high {
+    background: linear-gradient(to right, color-mix(in srgb, var(--qb-heat-high) 25%, var(--qb-heat-mid)), var(--qb-heat-high));
+}
+
+.qb-heat-gradient-low {
+    background: linear-gradient(to right, var(--qb-heat-low), color-mix(in srgb, var(--qb-heat-low) 25%, var(--qb-heat-mid)));
+}
+
+.qb-heat-swatch {
+    display: inline-block;
+    flex: 0 0 auto;
+    width: 16px;
+    height: 16px;
+    border: 1px solid var(--qb-heat-outline);
+}
+
+.qb-heat-swatch-null {
+    background-color: var(--qb-heat-null);
+    background-image: repeating-linear-gradient(45deg, var(--qb-heat-null-stripe) 0 1.5px, transparent 1.5px 4.24px);
+}
+
+.qb-heat-swatch-few {
+    background-color: color-mix(in srgb, var(--qb-heat-mid) 50%, var(--qb-heat-panel));
+    background-image: radial-gradient(circle, var(--qb-heat-dot) 0.9px, transparent 1.1px);
+    background-size: 4px 4px;
+}
+
+.qb-heat-swatch-best {
+    background-color: var(--qb-heat-high);
+    border: 3px solid var(--qb-heat-best);
+    box-shadow: inset 0 0 0 1px var(--qb-heat-best-inner);
+}
+
+/* Table of the cells: headers may wrap, numbers never (lesson of PR 7). */
+.qb-heat-table th {
+    white-space: normal;
 }

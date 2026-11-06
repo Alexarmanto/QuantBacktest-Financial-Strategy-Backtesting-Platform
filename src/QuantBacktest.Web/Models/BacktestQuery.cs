@@ -17,7 +17,7 @@ internal sealed record QueryFieldError(string Field, string Message);
 /// the URL parameter names. Values are kept in URL units (rates in percent); <see cref="ToBacktestRequest"/> converts
 /// them to the fractions of the contract. Only parsing, input validation and unit conversion: no financial logic.
 /// </summary>
-internal sealed record BacktestQuery(
+internal sealed partial record BacktestQuery(
     string Symbol,
     Timeframe Timeframe,
     string StrategyId,

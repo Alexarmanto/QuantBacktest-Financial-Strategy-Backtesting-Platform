@@ -10,7 +10,7 @@ internal static class Navigation
     [
         new("Backtest", "Backtest", true),
         new("Compare", "Compare", true),
-        new("Optimize", "Optimize", false),
+        new("Optimize", "Optimize", true),
         new("Validate", "Validate", false),
         new("Strategies", "Strategies", true),
         new("Data", "Data", false),
