@@ -368,3 +368,19 @@
     white-space: normal;
     text-align: left;
 }
+
+/* Value lists of the other result pages (Optimize grid): below 576 px each value goes under its label, left-aligned,
+   and may wrap, as on the Validate page, so "0.0005 to 0.0125, step 0.0005" stays inside its card at 360 px. CSS only:
+   the col-6 classes of the view are kept, so from 576 px up the rendering is unchanged. ".qb-value-list > dd"
+   outweighs ".num" and ".col-6"; .qb-validate-list and .qb-data-list are unchanged. */
+@media (max-width: 575.98px) {
+    .qb-value-list > dt,
+    .qb-value-list > dd {
+        width: 100%;
+    }
+
+    .qb-value-list > dd {
+        text-align: left;
+        white-space: normal;
+    }
+}
