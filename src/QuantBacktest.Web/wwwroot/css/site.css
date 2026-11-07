@@ -360,3 +360,11 @@
         text-align: left;
     }
 }
+
+/* Data quality page only (P4-U10): every value of the list starts at the left of its column, at any width, so a
+   number (dd.num: Bars, dates, Largest gap) lines up with the text values; it keeps tabular-nums and may wrap.
+   ".qb-data-list dd" outweighs ".num", which is unchanged for every other page. */
+.qb-data-list dd {
+    white-space: normal;
+    text-align: left;
+}

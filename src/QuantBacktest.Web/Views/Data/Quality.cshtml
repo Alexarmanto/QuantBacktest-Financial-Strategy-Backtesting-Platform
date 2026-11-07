@@ -1,0 +1,120 @@
+@model DataQualityViewModel
+@{
+    ViewData["Title"] = "Data quality";
+}
+
+<p><a href="@Model.BackUrl">← Back to data</a></p>
+
+<h1 class="h3 mb-3">@Model.Heading</h1>
+
+@* The notice of the catalog (P4-U8), same markup. *@
+@if (Model.Notice is { } notice)
+{
+    <div class="alert @(notice.IsSuccess ? "alert-success" : "alert-danger")" role="@(notice.IsSuccess ? "status" : "alert")">@notice.Text</div>
+}
+
+@if (Model.InputErrors.Count > 0)
+{
+    <div class="alert alert-danger" role="alert">
+        <p class="mb-0">@DataQualityViewModel.InvalidLinkMessage</p>
+        <ul class="mb-0 mt-2">
+            @foreach (var message in Model.InputErrors)
+            {
+                <li>@message</li>
+            }
+        </ul>
+    </div>
+}
+
+@if (Model.Alert is { } alert)
+{
+    @* Same markup as _FormAlerts (P4-U12). *@
+    <div class="alert alert-danger" role="alert">
+        <p class="mb-0">@alert.Message</p>
+        @if (alert.Hint is not null)
+        {
+            <p class="mb-0 mt-2">@alert.Hint</p>
+        }
+        @if (alert.Command is not null)
+        {
+            <pre class="qb-command mb-0 mt-2"><code>@alert.Command</code></pre>
+        }
+    </div>
+}
+
+@if (Model.Report is { } report)
+{
+    @* Values may wrap and, below 576 px, go under their label (site.css .qb-data-list). *@
+    <div class="qb-panel">
+        <dl class="row mb-0 qb-data-list">
+            <dt class="col-sm-4">Symbol</dt>
+            <dd class="col-sm-8">@report.Symbol</dd>
+            <dt class="col-sm-4">Timeframe</dt>
+            <dd class="col-sm-8">@report.Timeframe</dd>
+            <dt class="col-sm-4">Bars</dt>
+            <dd class="col-sm-8 num">@report.Bars</dd>
+            <dt class="col-sm-4">First date</dt>
+            <dd class="col-sm-8 num">@report.FirstDate</dd>
+            <dt class="col-sm-4">Last date</dt>
+            <dd class="col-sm-8 num">@report.LastDate</dd>
+            <dt class="col-sm-4">Adjusted prices</dt>
+            <dd class="col-sm-8">@report.Adjusted</dd>
+            <dt class="col-sm-4">Origin</dt>
+            <dd class="col-sm-8">@report.Origin</dd>
+            <dt class="col-sm-4">Last updated</dt>
+            <dd class="col-sm-8">
+                <span class="num">@report.LastUpdated</span>
+                <div class="form-text">@DataLabels.LastUpdatedHelp</div>
+            </dd>
+            <dt class="col-sm-4">Missing periods</dt>
+            <dd class="col-sm-8">
+                <span class="num">@report.MissingPeriods</span>
+                <div class="form-text">@report.MissingPeriodsHelp</div>
+            </dd>
+            <dt class="col-sm-4">Largest gap</dt>
+            <dd class="col-sm-8 num">@report.LargestGap</dd>
+        </dl>
+    </div>
+
+    <h2 class="h5 mt-4">Anomalies (@report.Anomalies.Count)</h2>
+    @if (report.Anomalies.Count == 0)
+    {
+        <p>@DataLabels.NoAnomaly</p>
+    }
+    else
+    {
+        @* Sorted by date by the service (D7); table-sort.js sorts on data-sort-value. The description wraps. *@
+        <div class="table-responsive">
+            <table class="table table-sm align-middle" data-sortable>
+                <thead>
+                    <tr>
+                        <th scope="col"><button type="button" class="qb-sort" data-sort-type="text">Date</button></th>
+                        <th scope="col"><button type="button" class="qb-sort" data-sort-type="text">Kind</button></th>
+                        <th scope="col">Description</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var anomaly in report.Anomalies)
+                    {
+                        <tr>
+                            <td class="num text-start" data-sort-value="@anomaly.SortValue">@anomaly.Date</td>
+                            <td data-sort-value="@anomaly.Kind"><span class="badge @anomaly.BadgeClass">@anomaly.Kind</span></td>
+                            <td>@anomaly.Description</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+}
+
+@if (Model.RefreshForm is { } refreshForm)
+{
+    <h2 class="h5 mt-4">Refresh this series</h2>
+    <partial name="_RefreshForm" model="refreshForm" />
+}
+
+@section Scripts {
+    <script type="module" src="~/js/table-sort.js" asp-append-version="true"></script>
+    <script type="module" src="~/js/refresh-form.js" asp-append-version="true"></script>
+}

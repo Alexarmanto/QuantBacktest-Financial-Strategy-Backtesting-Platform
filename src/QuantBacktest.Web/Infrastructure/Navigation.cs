@@ -13,6 +13,6 @@ internal static class Navigation
         new("Optimize", "Optimize", true),
         new("Validate", "Validate", true),
         new("Strategies", "Strategies", true),
-        new("Data", "Data", false),
+        new("Data", "Data", true),
     ];
 }

@@ -37,6 +37,16 @@ internal static class DisplayFormat
         return (rounded == 0 ? 0m : rounded).ToString(UpToFourDecimals, CultureInfo.InvariantCulture);
     }
 
+    /// <summary>Market date: 2026-10-14.</summary>
+    public static string Date(DateOnly date) => date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+
+    /// <summary>Count with grouped thousands: 1,406.</summary>
+    public static string Integer(int value) => value.ToString("#,##0", CultureInfo.InvariantCulture);
+
+    /// <summary>Instant shown in UTC, whatever its offset: 2026-11-06 23:03 UTC.</summary>
+    public static string UtcTimestamp(DateTimeOffset instant) =>
+        instant.UtcDateTime.ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture) + " UTC";
+
     private static string Number(double value)
     {
         var rounded = Math.Round(value, 2, MidpointRounding.AwayFromZero);
