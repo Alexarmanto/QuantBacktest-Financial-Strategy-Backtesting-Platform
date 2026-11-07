@@ -1,0 +1,76 @@
+@model DataIndexViewModel
+@{
+    ViewData["Title"] = "Data";
+}
+
+<h1 class="h3 mb-3">Market data</h1>
+
+<p>
+    API calls today: <span class="num">@Model.QuotaUsage</span>
+    · @Model.QuotaRemaining
+    · Resets at <span class="num">@Model.QuotaResetsAt</span>
+</p>
+
+<h2 class="h5 mt-4">Cached series</h2>
+@if (Model.IsEmpty)
+{
+    <p>@DataLabels.EmptyCache</p>
+}
+else
+{
+    @* 9 columns: the table scrolls inside its container below their width (360 px); numbers and dates never wrap.
+       position-relative: the "Links" header is .visually-hidden, i.e. position: absolute. Without a positioned
+       wrapper its containing block is the page, so the overflow of .table-responsive does not clip it and, placed
+       at the far right of the 667 px table, it widened the whole page at 360 px. *@
+    <div class="table-responsive position-relative">
+        <table class="table table-sm align-middle">
+            <thead>
+                <tr>
+                    <th scope="col">Symbol</th>
+                    <th scope="col">Timeframe</th>
+                    <th scope="col" class="text-end">Bars</th>
+                    <th scope="col">First date</th>
+                    <th scope="col">Last date</th>
+                    <th scope="col">Origin</th>
+                    <th scope="col">Adjusted</th>
+                    <th scope="col" class="text-end">Anomalies</th>
+                    <th scope="col"><span class="visually-hidden">Links</span></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var row in Model.Rows)
+                {
+                    <tr>
+                        <th scope="row">@row.Symbol</th>
+                        <td>@row.Timeframe</td>
+                        @if (row.IsCached)
+                        {
+                            <td class="num">@row.Bars</td>
+                            <td class="num text-start">@row.FirstDate</td>
+                            <td class="num text-start">@row.LastDate</td>
+                            <td>@row.Origin</td>
+                            <td>@row.Adjusted</td>
+                            <td class="num">@row.Anomalies</td>
+                            <td><a href="@row.QualityUrl">@DataLabels.QualityLink</a></td>
+                        }
+                        else
+                        {
+                            <td colspan="6" class="text-body-secondary">@DataLabels.NotCached</td>
+                            <td><a href="@row.RefreshFormUrl">@DataLabels.FillRefreshFormLink</a></td>
+                        }
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
+<section id="@DataRoutes.RefreshAnchorId" class="mt-4">
+    <h2 class="h5">Refresh a series from Alpha Vantage</h2>
+    <partial name="_FormAlerts" model="Model.RefreshForm" />
+    <partial name="_RefreshForm" model="Model.RefreshForm" />
+</section>
+
+@section Scripts {
+    <script type="module" src="~/js/refresh-form.js" asp-append-version="true"></script>
+}

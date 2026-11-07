@@ -1,0 +1,57 @@
+@model DataRefreshFormViewModel
+@* Refresh form of the data pages (P4-U10), posted to /Data/Refresh with its antiforgery token. confirm.js asks the
+   question of data-confirm; refresh-form.js then disables the button, only when the form is really sent. *@
+<form class="qb-panel" method="post" asp-controller="Data" asp-action="Refresh" asp-antiforgery="true"
+      data-confirm="@Model.Confirmation" data-refresh-form>
+    @if (Model.IsFixedSeries)
+    {
+        <input type="hidden" name="@BacktestQuery.SymbolKey" value="@Model.Symbol" />
+        <input type="hidden" name="@BacktestQuery.TimeframeKey" value="@Model.TimeframeValue" />
+    }
+    else
+    {
+        var symbolError = Model.Error(BacktestQuery.SymbolKey);
+        var timeframeError = Model.Error(BacktestQuery.TimeframeKey);
+        <div class="row g-3">
+            <div class="col-12 col-sm-6 col-md-4">
+                <label class="form-label" for="refresh-symbol">Symbol</label>
+                <input class="form-control qb-symbol @(symbolError is null ? "" : "is-invalid")"
+                       id="refresh-symbol" name="@BacktestQuery.SymbolKey" value="@Model.Symbol"
+                       list="cached-symbols" required maxlength="10" pattern="@BacktestFormViewModel.SymbolInputPattern"
+                       autocomplete="off" spellcheck="false" aria-describedby="refresh-symbol-help" />
+                <datalist id="cached-symbols">
+                    @foreach (var symbol in Model.CachedSymbols)
+                    {
+                        <option value="@symbol"></option>
+                    }
+                </datalist>
+                <div id="refresh-symbol-help" class="form-text">Letters, digits, '.' or '-'. Cached symbols are suggested.</div>
+                @if (symbolError is not null)
+                {
+                    <div class="invalid-feedback">@symbolError</div>
+                }
+            </div>
+            <div class="col-12 col-sm-6 col-md-3">
+                <label class="form-label" for="refresh-tf">Timeframe</label>
+                <select class="form-select @(timeframeError is null ? "" : "is-invalid")" id="refresh-tf" name="@BacktestQuery.TimeframeKey">
+                    @foreach (var (value, label) in DataRefreshFormViewModel.TimeframeOptions)
+                    {
+                        <option value="@value" selected="@(value == Model.TimeframeValue)">@label</option>
+                    }
+                </select>
+                @if (timeframeError is not null)
+                {
+                    <div class="invalid-feedback">@timeframeError</div>
+                }
+            </div>
+        </div>
+    }
+
+    <div class="@(Model.IsFixedSeries ? "" : "mt-3")">
+        <button type="submit" class="btn btn-primary" data-submit>
+            <span class="spinner-border spinner-border-sm me-1" aria-hidden="true" hidden data-spinner></span>
+            <span>@(Model.IsFixedSeries ? "Refresh this series" : "Refresh")</span>
+        </button>
+        <div class="form-text">Asks Alpha Vantage for the latest bars and merges them into the cache: one API call.</div>
+    </div>
+</form>

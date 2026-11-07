@@ -16,7 +16,7 @@ public class NavigationTests
             ("Optimize", true),
             ("Validate", true),
             ("Strategies", true),
-            ("Data", false));
+            ("Data", true));
     }
 
     [Fact] // P4-U13: every enabled link points to a controller with a GET Index action

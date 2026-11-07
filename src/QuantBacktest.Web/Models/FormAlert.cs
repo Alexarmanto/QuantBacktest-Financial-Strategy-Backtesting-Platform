@@ -13,6 +13,9 @@ internal sealed record FormAlert(string Message, string? Hint = null, string? Co
     public const string MissingApiKeyCommand =
         "dotnet user-secrets set \"AlphaVantage:ApiKey\" \"<your-key>\" --project src/QuantBacktest.Web";
 
+    /// <summary>MissingApiKey hint of the data pages (P4-U10): nothing is "run" there, the refresh is tried again.</summary>
+    public const string MissingApiKeyRetryHint = "Set your Alpha Vantage API key, then try again:";
+
     public static FormAlert From(BacktestValidationException exception)
     {
         ArgumentNullException.ThrowIfNull(exception);
@@ -28,5 +31,17 @@ internal sealed record FormAlert(string Message, string? Hint = null, string? Co
             MarketDataErrorKind.MissingApiKey => new FormAlert(exception.Message, MissingApiKeyHint, MissingApiKeyCommand),
             _ => new FormAlert(exception.Message),
         };
+    }
+
+    /// <summary>
+    /// The alert of <see cref="From(MarketDataException)"/> for the data pages only: same hints, except that the
+    /// MissingApiKey hint says "try again" (the backtest forms keep their own wording, unchanged).
+    /// </summary>
+    public static FormAlert ForRefresh(MarketDataException exception)
+    {
+        ArgumentNullException.ThrowIfNull(exception);
+        return exception.Kind == MarketDataErrorKind.MissingApiKey
+            ? new FormAlert(exception.Message, MissingApiKeyRetryHint, MissingApiKeyCommand)
+            : From(exception);
     }
 }
