@@ -5,7 +5,7 @@
 \usepackage{lmodern}
 \usepackage[english]{babel}
 \usepackage{microtype}
-\usepackage[margin=2.3cm]{geometry}
+\usepackage[margin=2.4cm]{geometry}
 \usepackage{amsmath}
 \usepackage{graphicx}
 \usepackage{float}
@@ -15,6 +15,8 @@
 \usepackage{xcolor}
 \usepackage{enumitem}
 \usepackage{caption}
+\usepackage{listings}
+\usepackage{fancyhdr}
 \usepackage{tikz}
 \usetikzlibrary{arrows.meta,positioning}
 \usepackage[hidelinks]{hyperref}
@@ -22,32 +24,92 @@
 \graphicspath{{images/}}
 \setlength{\parindent}{0pt}
 \setlength{\emergencystretch}{3em}
-\setlength{\parskip}{5pt plus 2pt}
-\setlist{itemsep=1pt,topsep=3pt}
+\setlength{\parskip}{6pt plus 2pt}
+\setlist{itemsep=2pt,topsep=4pt}
 \captionsetup{font=small,labelfont=bf}
+\renewcommand{\arraystretch}{1.12}
 \newcolumntype{Y}{>{\raggedright\arraybackslash}X}
 \newcommand{\code}[1]{\texttt{\small #1}}
 \definecolor{accent}{HTML}{1F6FEB}
+\definecolor{codebg}{HTML}{F5F7FA}
+\lstset{basicstyle=\ttfamily\small,backgroundcolor=\color{codebg},frame=single,rulecolor=\color{gray!40},breaklines=true,columns=fullflexible,keepspaces=true,showstringspaces=false}
+
+\newcommand{\strategy}[5]{%
+\subsubsection*{#1}
+\textbf{Idea.} #2\par
+\textbf{Rules.} #3\par
+\textbf{Risks.} #4\par
+\ifx&#5&\else\textbf{On SPY weekly.} #5\par\fi}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small QuantBacktest}
+\fancyhead[R]{\small\nouppercase{\rightmark}}
+\fancyfoot[C]{\small\thepage}
+\renewcommand{\headrulewidth}{0.3pt}
+\setlength{\headheight}{14pt}
 
 \tikzset{
-  box/.style={draw=accent,rounded corners=2pt,fill=accent!8,minimum height=7mm,minimum width=24mm,align=center,font=\small},
+  box/.style={draw=accent,rounded corners=2pt,fill=accent!8,minimum height=8mm,minimum width=24mm,align=center,font=\small},
   core/.style={box,draw=black,fill=black!8,font=\small\bfseries},
   arr/.style={-{Stealth[length=2.2mm]},thick,draw=black!70}
 }
 
-\title{\textbf{QuantBacktest}\\[2pt]\large Financial Strategy Backtesting Platform}
-\author{Alexandre Tung \and Victor Haegeman \and Eloi Dumas \and Alexis Launay-Schapman\\[4pt]
-\small EFREI Paris, ST2OOS, 2026/2027}
-\date{\small Source code: \url{https://github.com/Alexarmanto/QuantBacktest-Financial-Strategy-Backtesting-Platform}}
-
 \begin{document}
-\maketitle
+
+\begin{titlepage}
+\centering
+\vspace*{2.5cm}
+{\large EFREI Paris \par}
+{\large ST2OOS, academic year 2026/2027 \par}
+\vspace{3cm}
+{\Huge\bfseries QuantBacktest \par}
+\vspace{0.5cm}
+{\LARGE Financial Strategy Backtesting Platform \par}
+\vspace{0.5cm}
+{\large Project report \par}
+\vspace{3cm}
+{\large
+\begin{tabular}{ll}
+Alexandre Tung & Data, reports, deployment \\
+Victor Haegeman & Strategies, no-code rules, Monte Carlo \\
+Eloi Dumas & Backtesting engine, metrics, optimisation \\
+Alexis Launay-Schapman & Web application \\
+\end{tabular}
+\par}
+\vfill
+{\normalsize 14 November 2026 \par}
+\end{titlepage}
+
+\tableofcontents
+\clearpage
 
 \section{Introduction}
 
-A backtest answers one question: if I had followed this trading rule in the past, what would have happened to my money? We built a backtesting website in C\# (.NET 10, ASP.NET Core MVC) that fetches prices from the Alpha Vantage API, keeps them locally, simulates trading strategies on daily and weekly data, measures their performance and generates reports. The user interface is shown in the demonstration video, so this report focuses on design choices and results.
+A backtest answers one simple question: if I had followed this trading rule in the past, what would have happened to my money? The goal of this project was to build a backtesting website in C\# and .NET. The subject asked us to fetch historical prices from the Alpha Vantage API, to store them locally in order to limit API calls, to implement at least six trading strategies, to simulate them on daily and weekly data, to compute performance metrics, to show the results in a web interface and to generate reports with graphs and trade logs.
 
-The application covers every requirement of the subject, with 10 strategies and a buy \& hold baseline where 6 were asked for. We added features that make a result easier to trust: stop-loss, take-profit, trailing stop and slippage; an optimisation heatmap with an overfitting warning; train/test validation; a strategy comparator; Monte Carlo simulation; a data quality panel; a no-code strategy builder; permanent links; and a Docker image.
+\begin{table}[H]
+\centering\small
+\begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}p{5.6cm}Y}
+\toprule
+\textbf{Requirement of the subject} & \textbf{In QuantBacktest} \\
+\midrule
+Fetch data from the free Alpha Vantage API & Typed HTTP client, daily and weekly series (Section~\ref{sec:data}) \\
+Store data locally & SQLite cache and seed files \\
+At least 6 strategies & 10 strategies and a buy \& hold baseline (Section~\ref{sec:strategies}) \\
+Custom strategies from templates & A C\# template and a no-code rule builder \\
+Simulation engine, daily and weekly & Next-open execution model (Section~\ref{sec:engine}) \\
+Return, volatility, drawdown, Sharpe & 13 metrics, for the strategy and for buy \& hold \\
+Web interface with charts and tables & ASP.NET Core MVC application (Section~\ref{sec:web}) \\
+Reports with graphs and trade logs & PDF report and CSV export (Section~\ref{sec:reports}) \\
+\bottomrule
+\end{tabularx}
+\caption{Requirements of the subject and where they are met.}
+\end{table}
+
+Beyond the subject, we added features whose purpose is mostly to help the user trust a result, or to distrust it: stop-loss, take-profit, trailing stop and slippage; an optimisation heatmap with an overfitting warning; train/test validation; a comparator of strategies; advanced metrics (Sortino, Calmar, profit factor, exposure); indicators drawn on the charts and an explanatory card for each strategy; a Monte Carlo simulation on the trades; a data quality panel and an API quota counter; a permanent link for each result; and a Docker image.
+
+The interface is presented in the demonstration video, so this report focuses on how the platform works, on the choices we made, and on what its results mean.
 
 \begin{table}[H]
 \centering\small
@@ -55,8 +117,8 @@ The application covers every requirement of the subject, with 10 strategies and 
 \toprule
 \textbf{Member} & \textbf{Responsibility} \\
 \midrule
-Alexandre Tung & Alpha Vantage client, SQLite cache, data quality, PDF and CSV reports, Docker \\
-Victor Haegeman & Indicators, strategies, no-code rule engine, Monte Carlo \\
+Alexandre Tung & Alpha Vantage client, SQLite cache, seed files, data quality, API quota, storage of no-code strategies, PDF and CSV reports, Docker \\
+Victor Haegeman & Technical indicators, strategies, C\# template, no-code rule engine, Monte Carlo \\
 Eloi Dumas & Backtesting engine, advanced orders, metrics, optimisation heatmap \\
 Alexis Launay-Schapman & Web application, comparator, train/test, permanent links \\
 \bottomrule
@@ -65,180 +127,567 @@ Alexis Launay-Schapman & Web application, comparator, train/test, permanent link
 \end{table}
 
 \section{Architecture}
+\label{sec:architecture}
 
-With four people working at the same time, our priority was to avoid blocking each other. The solution has one shared project, \code{Core}, and one project per responsibility (Figure~\ref{fig:layers}). \code{Core} only contains interfaces, data models and constants. What a signature cannot say, such as the price at which an order is filled, is written in a contract with numbered rules (X1--X15 for execution, M1--M14 for metrics, D1--D8 for data\dots) that the code and the tests quote. We froze this contract early and never had to change it.
+\subsection{Layers and contract}
+
+Four people had to work at the same time without blocking each other, and most of the architecture comes from this constraint. The solution contains one shared project, \code{Core}, and one project per responsibility (Figure~\ref{fig:layers}).
 
 \begin{figure}[H]
 \centering
-\begin{tikzpicture}[node distance=6mm and 5mm]
+\begin{tikzpicture}[node distance=7mm and 5mm]
 \node[core,minimum width=136mm] (core) {Core (interfaces, models, constants)};
-\node[box,above=9mm of core.north west,anchor=south west] (data) {Data};
+\node[box,above=11mm of core.north west,anchor=south west] (data) {Data};
 \node[box,right=of data] (reports) {Reports};
 \node[box,right=of reports] (strategies) {Strategies};
 \node[box,right=of strategies] (analytics) {Analytics};
 \node[box,right=of analytics,minimum width=20mm] (engine) {Engine};
-\node[box,below=9mm of core.south,minimum width=40mm,xshift=-30mm] (web) {Web (composition root)};
-\node[box,below=9mm of core.south,minimum width=30mm,xshift=25mm] (fakes) {Fakes};
+\node[box,below=11mm of core.south,minimum width=40mm,xshift=-30mm] (web) {Web (composition root)};
+\node[box,below=11mm of core.south,minimum width=30mm,xshift=25mm] (fakes) {Fakes};
 \foreach \n in {data,reports,strategies,analytics,engine} \draw[arr] (\n.south) -- (\n.south |- core.north);
 \draw[arr] (web.north) -- (web.north |- core.south);
 \draw[arr] (fakes.north) -- (fakes.north |- core.south);
 \end{tikzpicture}
-\caption{Every project depends on \code{Core} only. \code{Web} also references the others, only to plug them in.}
+\caption{Project dependencies. Every project depends on \code{Core} only; \code{Web} also references the others, only to plug them in.}
 \label{fig:layers}
 \end{figure}
 
-A project never references the project of another part: parts communicate through interfaces injected by dependency injection. For a backtest, the web layer calls \code{IBacktestService}, which gets the strategy from \code{IStrategyCatalog} and the prices from \code{IMarketDataService}, then runs \code{IBacktestEngine}. The resulting \code{BacktestResult} is displayed and is the input of the Monte Carlo service and of the report generator. A \code{Fakes} project implements every interface, so the web pages could be built before the real engine existed; one setting per part switches between the fake and the real service.
+\code{Core} contains only interfaces (\code{IMarketDataService}, \code{IStrategy}, \code{IBacktestEngine}\dots), data models (\code{PriceSeries}, \code{BacktestResult}\dots) and constants. A method signature cannot say everything: it cannot say, for example, at which price an order is filled. So we also wrote a contract with numbered rules (X1--X15 for the execution of orders, M1--M14 for the metrics, D1--D8 for the data, and so on), which the code and the tests quote. Once validated, it was frozen: changing it required the agreement of all four members. In the end nobody had to change it.
 
-Some conventions removed whole families of bugs: \code{decimal} for money and \code{double} for statistics; fractions in the code and percentages only on screen; invariant culture for parsing; an injected clock; and \code{null} (shown as ``n/a'') for an undefined ratio, never \code{NaN} or 0.
+\subsection{Request flow}
 
-\section{Data layer}
-
-\textbf{What the free plan gives.} We first tested the endpoints with a free key. The full daily history and the adjusted daily series are premium: we only get the last 100 raw daily bars. The adjusted weekly series, however, is free and goes back to 1999 (1,406 bars), so long tests use weekly data.
-
-\textbf{Cache and seed files.} Prices are stored in SQLite with EF Core. Without a refresh, the cache is returned with no API call, so a backtest is reproducible. If the cache is empty, a committed seed file is imported (AAPL, MSFT, SPY, JPM), or else the API is called. A refresh merges bars by date and never deletes one; if it fails, the cache is unchanged. Seed files also let the application run without a key.
-
-\textbf{Pitfalls of the API.} The project guide gave a good starting point, but we met three traps. Alpha Vantage reports errors as JSON with HTTP 200, so testing the status code would save an error message as data: our client detects and classifies these answers. \code{double.Parse("123.45")} without a culture misreads the number on a French system, so we always use the invariant culture, and a test runs under \code{fr-FR}. Finally, the key is in the URL and even in the rate limit message of the API: it is only read from user-secrets or an environment variable, our messages never copy the API text, and HTTP logging is removed. After a real refresh in Docker, the key did not appear anywhere in the logs.
-
-\textbf{Quota and concurrency.} The 25 daily requests are counted per UTC day before sending, so failures count too. Simultaneous calls for a series share one download: 10 calls send one HTTP request.
-
-\textbf{Data quality.} A report computed on cached data flags price jumps above 25\,\%, zero volumes, five identical closes in a row, and calendar gaps. It finds real events (Figure~\ref{fig:quality}): the 11-day gap of September 2001 and the violent moves of JPM during the 2008 crisis. A flag is an invitation to look, not necessarily an error.
+A project never references the project of another part, only \code{Core}. The parts communicate through interfaces injected by dependency injection, and only \code{Web}, the composition root, knows every project. Figure~\ref{fig:flow} shows one backtest.
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.68\textwidth]{part4-12-data-quality-detail.png}
+\begin{tikzpicture}[node distance=6mm and 11mm]
+\node[box] (web) {Web};
+\node[box,right=of web,minimum width=34mm] (svc) {IBacktestService\\(Engine)};
+\node[box,above right=1mm and 12mm of svc,minimum width=38mm] (cat) {IStrategyCatalog\\(Strategies)};
+\node[box,right=12mm of svc,minimum width=38mm,yshift=-14mm] (md) {IMarketDataService\\(Data)};
+\node[box,below=17mm of svc,minimum width=34mm] (eng) {IBacktestEngine\\(Engine)};
+\node[core,left=of eng,minimum width=30mm] (res) {BacktestResult};
+\node[box,below=7mm of res,minimum width=34mm] (mc) {IMonteCarloService\\(Analytics)};
+\node[box,right=8mm of mc,minimum width=34mm] (pdf) {IReportGenerator\\(Reports)};
+\draw[arr] (web) -- (svc);
+\draw[arr] (svc) -- (cat);
+\draw[arr] (svc) -- (md);
+\draw[arr] (svc) -- (eng);
+\draw[arr] (eng) -- (res);
+\draw[arr] (res) -- (web);
+\draw[arr] (res) -- (mc);
+\draw[arr] (res.south east) -- (pdf.north west);
+\end{tikzpicture}
+\caption{Flow of one backtest. Each box is an interface of \code{Core} and the project implementing it.}
+\label{fig:flow}
+\end{figure}
+
+\subsection{Working in parallel}
+
+The \code{Fakes} project contains a plausible fake of every interface and a deterministic price generator. Because of it, the web pages could be built before the real engine existed. One configuration key per part chooses between the real service and the fake, so each real part was plugged in as soon as it was ready. The fakes are only a development tool: the contract defines the correct behaviour.
+
+\subsection{Conventions}
+
+A few conventions, applied everywhere, removed whole families of bugs:
+
+\begin{itemize}
+\item \code{decimal} for prices, quantities and amounts, and \code{double} for returns and ratios;
+\item fractions in the code (0.12 means 12\,\%), percentages only on screen;
+\item \code{CultureInfo.InvariantCulture} whenever a number or a date is parsed or written outside the display;
+\item \code{DateOnly} for market dates, and an injected \code{TimeProvider} instead of \code{DateTime.Now};
+\item an undefined ratio is \code{null} and displayed as ``n/a'', never \code{NaN} and never replaced by 0.
+\end{itemize}
+
+\section{Data layer}
+\label{sec:data}
+
+\subsection{What the free plan gives}
+
+Before designing anything, we tested the endpoints with a free key (Table~\ref{tab:spike}). The result changed our plans: the full daily history and the adjusted daily series are premium features.
+
+\begin{table}[H]
+\centering\small
+\begin{tabular}{lllr}
+\toprule
+\textbf{Endpoint} & \textbf{Result} & \textbf{Period} & \textbf{Bars} \\
+\midrule
+\code{TIME\_SERIES\_DAILY}, compact & Accepted & 2026-05-22 to 2026-10-14 & 100 \\
+\code{TIME\_SERIES\_DAILY}, full & Refused (premium) & & -- \\
+\code{TIME\_SERIES\_DAILY\_ADJUSTED} & Refused (premium) & & -- \\
+\code{TIME\_SERIES\_WEEKLY} & Accepted & 1999-11-12 to 2026-10-14 & 1406 \\
+\code{TIME\_SERIES\_WEEKLY\_ADJUSTED} & Accepted & 1999-11-12 to 2026-10-14 & 1406 \\
+\bottomrule
+\end{tabular}
+\caption{Endpoints tested on the free plan (MSFT, 15 October 2026).}
+\label{tab:spike}
+\end{table}
+
+We therefore use the compact daily endpoint and the adjusted weekly endpoint. Weekly data gives 27 years of prices adjusted for splits and dividends, so long tests use it. The adjustment applies the factor \textit{adjusted close / close} to the four prices and leaves the volume unchanged. A series is marked as adjusted only if all of its bars are (rule D6). We did not add a third-party source for long daily histories, to avoid any licensing doubt.
+
+\subsection{Cache, seed files and loading}
+
+Prices live in a local SQLite database accessed with EF Core, with four tables: \code{PriceBars}, \code{SeriesMetadata}, \code{ApiUsage} and \code{CustomStrategies} (Figure~\ref{fig:sqlite}). Loading a series follows these rules (D2, D3):
+
+\begin{enumerate}
+\item \textbf{Without refresh, cache not empty:} the cache is returned and no API call is made, so a backtest gives the same result every time.
+\item \textbf{Without refresh, cache empty:} the seed file of the series is imported if it exists; otherwise the API is called.
+\item \textbf{With refresh:} the API is called and the bars are merged by date. New dates are inserted, existing dates are replaced, and no bar is ever deleted. If the call fails, the cache is left untouched.
+\end{enumerate}
+
+The seed files are snapshots of the free endpoints for AAPL, MSFT, SPY and JPM, in daily and weekly. They let the application work without an API key. Each series records its origin: \code{Seed}, \code{Api} or \code{Mixed}. Figure~\ref{fig:refresh} shows a real refresh.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.8\textwidth]{part1-05-sqlite-tables.png}
+\caption{Tables of the SQLite cache and recent rows of \code{PriceBars}, read in a terminal (database of a console run of the data layer, same schema as the application).}
+\label{fig:sqlite}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.72\textwidth]{part1-15-api-refresh.png}
+\caption{A real refresh of MSFT daily: the API bars are merged into the seed series (117 bars, origin \code{Mixed}).}
+\label{fig:refresh}
+\end{figure}
+
+\subsection{Talking to Alpha Vantage safely}
+
+The project guide gave us a good starting point: \code{GetAsync}, then parsing the CSV by splitting on commas. While working on it, we found three traps.
+
+\textbf{Errors arrive with HTTP 200.} With an invalid key or when the limit is reached, Alpha Vantage answers with status 200 and a small JSON document, even when CSV was requested. A simple test on the status code would save this JSON as if it were data. Our client detects a body starting with \code{\{} and classifies it into \code{SymbolNotFound}, \code{RateLimitExceeded} or \code{InvalidResponse}.
+
+\textbf{Decimal separators.} \code{double.Parse("123.45")} without a culture misreads the number on a computer configured in French, which is the default on our machines. The parser always uses the invariant culture, and one test runs under \code{fr-FR} to prove it.
+
+\textbf{The API key can leak.} The key is part of the URL, and .NET logs request URLs by default. Worse, the rate limit message of Alpha Vantage repeats the key. So the key is only read from user-secrets or an environment variable, our error messages never copy the text of the API, and HTTP logging is removed:
+
+\begin{lstlisting}
+services.AddHttpClient<AlphaVantageClient>(
+        AlphaVantageClient.HttpClientName,
+        client => client.Timeout = AlphaVantageClient.Timeout)
+    .RemoveAllLoggers();
+\end{lstlisting}
+
+After a real refresh in the Docker container, we searched the whole log for the key, for \code{apikey=} and for the host name of the API, and found no occurrence of any of them.
+
+\subsection{Parsing, quota and concurrency}
+
+The parser accepts exactly two headers, raw and adjusted. A malformed line, or one that breaks the invariants of a bar ($\text{High} \geq \max(\text{Open},\text{Close})$ and $\text{Low} \leq \min(\text{Open},\text{Close})$), is dropped with a warning and never repaired.
+
+The free plan allows 25 requests per day. Every HTTP request is counted per UTC day just before it is sent, so a failed request counts too. Simultaneous calls for the same series share one download, thanks to one lock per symbol and timeframe: ten simultaneous calls send one HTTP request.
+
+\subsection{Data quality}
+
+A backtest is only as good as its data. The quality report, computed on cached data only (rule D7), flags four kinds of anomalies: a \textbf{price jump} when the close moves by more than 25\,\% in one bar; a \textbf{zero volume}; a \textbf{stale price} at the fifth identical close in a row; and a \textbf{gap} when more than 5 calendar days (daily) or 10 days (weekly) separate two bars. It also counts the missing periods and the largest gap.
+
+Figure~\ref{fig:quality} shows that it finds real events: the 11-day gap of September 2001, when US markets closed after the attacks of 11 September, and the violent moves of JP Morgan during the 2008 crisis. These are true market moves, so a flag is an invitation to look, not an error.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.72\textwidth]{part4-12-data-quality-detail.png}
 \caption{Quality report of JPM weekly: one gap and five price jumps.}
 \label{fig:quality}
 \end{figure}
 
 \section{Strategies}
+\label{sec:strategies}
 
-A strategy only returns \code{Buy}, \code{Sell} or \code{Hold} for each bar, and knows nothing about capital, fees or stops. It is deterministic and may only use past bars. All strategies share one implementation of the indicators (SMA, EMA, Bollinger, RSI, ROC, MACD, highest high and lowest low). Classes are discovered by reflection, so adding one does not touch the web project; a commented C\# template makes this easy.
+\subsection{What a strategy is allowed to do}
 
-Users can also build strategies without code: an entry and an exit rule, each with 1 to 5 conditions combining prices, volume, constants and indicators. A definition is validated, stored as JSON, and becomes a normal strategy.
+In our design, a strategy only gives an opinion. For each bar it returns \code{Buy}, \code{Sell} or \code{Hold}. It knows nothing about capital, fees or stops, which belong to the engine. The common rules are strict: a strategy is pure and deterministic (S1); it returns exactly one signal per bar, and \code{Hold} while its indicators warm up (S2); the signal of bar $i$ may only depend on bars $0$ to $i$ (S3); and if the buy and sell conditions are both true on a bar, the signal is \code{Sell} (S4).
 
-Table~\ref{tab:spy} shows the strategies on SPY weekly from 1999 to 2026, with default parameters and a 0.1\,\% fee. Turn of the month accepts daily data only and is absent.
-
-\begin{table}[H]
-\centering\small
-\begin{tabular}{lrrrrr}
-\toprule
-\textbf{Strategy} & \textbf{Return} & \textbf{Sharpe} & \textbf{Max drawdown} & \textbf{Trades} & \textbf{Exposure} \\
-\midrule
-Moving average crossover & +759.4\,\% & 0.70 & 31.8\,\% & 9 & 70.9\,\% \\
-Donchian breakout & +300.9\,\% & 0.57 & 27.9\,\% & 22 & 61.0\,\% \\
-Buy and hold & +781.5\,\% & 0.55 & 54.6\,\% & 1 & 99.9\,\% \\
-Momentum (ROC) & +258.5\,\% & 0.48 & 38.5\,\% & 68 & 68.7\,\% \\
-Trend-filtered RSI-2 & +111.7\,\% & 0.40 & 23.5\,\% & 42 & 9.2\,\% \\
-RSI reversion & +156.9\,\% & 0.37 & 43.4\,\% & 4 & 20.6\,\% \\
-MACD crossover & +94.0\,\% & 0.29 & 40.9\,\% & 59 & 53.3\,\% \\
-Bollinger + RSI & +56.6\,\% & 0.24 & 37.4\,\% & 6 & 5.0\,\% \\
-Bollinger reversion & +67.7\,\% & 0.23 & 41.4\,\% & 20 & 14.2\,\% \\
-Consecutive down days & +30.0\,\% & 0.17 & 39.8\,\% & 57 & 7.3\,\% \\
-\bottomrule
-\end{tabular}
-\caption{SPY weekly, 1,406 bars, default parameters, sorted by Sharpe ratio.}
-\label{tab:spy}
-\end{table}
-
-Only the moving average crossover comes close to buy \& hold, with a much smaller drawdown because it stays out of long declines. Mean reversion strategies are rarely invested on weekly bars, which explains their low returns. Many results rest on very few trades, so this table alone does not prove that one strategy is better.
-
-\section{Backtesting engine}
-
-\textbf{Execution.} A signal is computed at the close of a bar and executed at the \textbf{Open of the next bar}, so it cannot use a price that did not exist yet. Positions are long only and use all the cash. With a slippage $s$ and a fee $f$, a buy is filled at $p(1+s)$, with quantity $q = \text{cash}/(\text{fill}(1+f))$, and a sale at $p(1-s)$, with proceeds $q\,\text{fill}\,(1-f)$. Bars before the requested period only warm up the indicators.
-
-\textbf{Protective exits.} The stop level is the highest of $E(1-\text{SL})$ and $\text{peak}(1-\text{TS})$, and the target is $E(1+\text{TP})$, with $E$ the entry price. If a bar opens beyond a level, the exit is at the Open. If stop and target are both touched in one bar, the order is unknown, so we prudently assume the stop came first.
-
-\textbf{Metrics.} We compute 13 metrics for the strategy and for buy \& hold, including the cumulative and annualized return, volatility, maximum drawdown, win rate, profit factor and exposure. With $P$ periods per year (252 or 52) and $r_t$ the returns:
-\[
-\text{Sharpe} = \frac{\bar r - r_f}{\sigma(r)}\sqrt{P},\qquad
-\text{Sortino} = \frac{\bar r - r_f}{\sqrt{\frac1n\sum\min(0,r_t-r_f)^2}}\sqrt{P},\qquad
-\text{Calmar} = \frac{\text{annualized return}}{\text{max drawdown}}.
-\]
-
-\textbf{Heatmap.} Up to 625 pairs of parameters go through the same validation and engine as a normal backtest. An optimiser always finds a best cell, even on noise, so a warning appears when the best value is more than twice the average of its neighbours.
-
-\textbf{Checking the numbers.} Expected values in the 184 engine tests are recomputed from the formulas, never copied from the output. Scenarios were also computed independently in a spreadsheet (Figure~\ref{fig:hand}). Property tests on random signals check that the equity is never negative, that the final equity equals the capital plus the profits, and that truncating the future does not change the past.
+Classes are discovered by reflection, so adding a strategy does not require touching the web project. Each one comes with a card written for the user: the idea, the exact rules, and when it loses money (Figure~\ref{fig:catalog}).
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.72\textwidth]{part3-02-hand-check-spreadsheet.png}
-\caption{A six-bar scenario recomputed by hand: quantity, fees, net profit and equity.}
-\label{fig:hand}
+\includegraphics[width=0.62\textwidth]{report-catalog.png}
+\caption{First two cards of the strategy catalog, generated from the strategies themselves.}
+\label{fig:catalog}
 \end{figure}
 
-\section{Robustness analysis}
+\subsection{Indicators}
 
-A good backtest proves little on its own, so we added two tools.
-
-\textbf{Train/test.} The page optimises on the first part of the period (70\,\% by default) and tests the best parameters once on the rest. On AAPL weekly since 2010, the crossover with fast 26 and slow 35 has a Sharpe ratio of 1.02 in training and 0.75 in test. This drop is expected, since the parameters were chosen on the training data. With 5 and 6 trades, neither figure is statistically solid.
-
-\textbf{Monte Carlo.} We draw the returns of the trades at random with replacement and compound them, 100 to 10,000 times, from a fixed seed. This gives distributions of the final return and of the trade-level drawdown. \textit{Consecutive down days} on AAPL weekly has a 68.7\,\% probability of loss, and its actual result (-41.98\,\%) is near the median: it is simply a losing strategy. The crossover on MSFT weekly has an 8.5\,\% probability of loss, but percentiles ranging from -17.4\,\% (P5) to +29,111\,\% (P95): with 15 trades, one of which earned +521\,\%, the result depends heavily on that single trade.
-
-\section{Web application}
-
-The site has six pages: Backtest, Compare, Optimize, Validate, Strategies and Data. The video shows them in use. The web project contains no financial logic: controllers call the services and view models format the values. Forms and strategy cards are generated from the catalog, so no strategy is hard-coded. Only the exceptions of the contract are shown to the user, with the input kept; anything else is a bug and reaches a generic error page. Every result has a \code{GET} URL holding all its settings, and one class writes a single canonical form of it, so a result can be shared and reproduced. Bootstrap and Chart.js are served locally.
-
-\begin{figure}[H]
-\centering
-\includegraphics[width=0.8\textwidth]{report-real-metrics.png}
-\caption{Results of a real backtest: AAPL weekly, moving average crossover with stops.}
-\end{figure}
-
-\section{Reports and deployment}
-
-The PDF report is built with QuestPDF and ScottPlot (Figure~\ref{fig:pdf}). Every number comes from \code{BacktestResult} and nothing is recomputed, so the report cannot disagree with the screen. We checked one real report by hand: for MSFT weekly, the 15 net profits add up to 85,964.29, which matches the printed final equity of 95,964.29. Trades can also be exported as CSV.
-
-\begin{figure}[H]
-\centering
-\includegraphics[height=7.2cm]{part1-08-pdf-page1.png}\hspace{4mm}
-\includegraphics[height=7.2cm]{part1-12-pdf-montecarlo.png}
-\caption{PDF report: summary page and Monte Carlo page.}
-\label{fig:pdf}
-\end{figure}
-
-\code{docker compose up --build} starts the application on port 8080. The image is only built if the solution compiles with warnings as errors and all the tests pass. It runs as a non-root user, keeps the database in a named volume and reads the API key from a local \code{.env} file that is never committed. We ran it with Docker Desktop, including a real API refresh and the generation of a PDF.
-
-\section{Quality and teamwork}
-
-The solution has 1,494 automated tests with no network and no real clock: Web 923, Engine 184, Strategies 168, Data 124, Reports 55, Analytics 14, Fakes 14, Core 12. Each test quotes the rule it checks. Razor views, JavaScript and CSS were checked by hand.
-
-All changes went through pull requests, on branches named after each part: 42 were merged between 13 October and 8 November 2026. GitHub Actions compiles with warnings as errors, runs all tests, checks the title of the pull request and verifies that the changed files belong to the part of the branch. Branch protection requires these checks and forbids force-pushes. We removed the mandatory approval on 15 October because it slowed us down, while keeping it for contract changes; the CI cannot replace a human reading the code, so this was a compromise.
-
-Our most useful decision was to write a precise contract before the code. We also learned that a backtest can be wrong in silent ways (a look-ahead, a misread decimal, an error saved as data), which is why the tools showing the limits of a result matter as much as the strategies.
-
-\section{Limitations and future work}
-
-\begin{itemize}
-\item \textbf{Data.} Only 100 raw daily bars are free, so long tests are weekly; seed files are snapshots of October 2026. A paid source would give long adjusted daily histories.
-\item \textbf{Simulation.} Long only, no leverage, no volume limit, no taxes and no interest on cash. Inside a bar, the order of the High and the Low is unknown.
-\item \textbf{Validation.} Train/test uses a single split, and walk-forward validation would be better. Monte Carlo resamples one backtest and assumes independent trades.
-\item \textbf{Interface.} Only the equity chart has a log scale, and the comparator uses default parameters.
-\item \textbf{Method.} Our symbols are large, successful companies chosen with hindsight, on which buy \& hold is hard to beat. Past results do not predict future results.
-\end{itemize}
-
-\appendix
-\section{User manual}
-
-\textbf{Start.} With Docker: copy \code{.env.example} to \code{.env}, optionally add a free Alpha Vantage key, run \code{docker compose up --build} and open \url{http://localhost:8080}. Without Docker: set the key with \code{dotnet user-secrets set "AlphaVantage:ApiKey" "<key>" --project src/QuantBacktest.Web}, then run \code{dotnet run --project src/QuantBacktest.Web} and open \url{http://localhost:5080}. Without a key, AAPL, MSFT, SPY and JPM still work.
+All strategies share a single implementation of the indicators, and the no-code engine uses it too, so two strategies cannot disagree on what ``RSI 14'' means.
 
 \begin{table}[H]
 \centering\small
 \begin{tabularx}{\textwidth}{lY}
 \toprule
-\textbf{Page} & \textbf{Use} \\
+\textbf{Indicator} & \textbf{Definition} \\
 \midrule
-Backtest & Choose a symbol, timeframe, strategy and settings. Empty stops are disabled. The result offers the PDF, the CSV, Monte Carlo and optimisation. \\
-Compare & Run 2 to 5 strategies with default parameters on the same data. \\
-Optimize & Test pairs of two parameters. An ``isolated peak'' warning suggests overfitting. \\
-Validate & Optimise on the first part of the period and test on the rest. \\
-Strategies & Read each strategy's rules and risks, and create no-code strategies. \\
-Data & See cached series and their quality report, and refresh a series (1 of 25 daily calls). \\
+SMA($n$) & Average of the last $n$ closes \\
+EMA($n$) & $\alpha = 2/(n+1)$, started from the SMA of the first $n$ values; then $\alpha x_i + (1-\alpha)\,\text{EMA}_{i-1}$ \\
+Bollinger($n,k$) & Middle band SMA($n$); upper and lower bands at $\pm\, k$ population standard deviations over $n$ \\
+RSI($n$) & Wilder's smoothing of average gains and losses, $100 - 100/(1+\text{gains}/\text{losses})$, from 0 to 100 \\
+ROC($n$) & Rate of change: $x_i / x_{i-n} - 1$ \\
+MACD($f,s,g$) & Line: EMA($f$) $-$ EMA($s$). Signal: EMA($g$) of this line \\
+Highest high / lowest low($n$) & Over the $n$ previous bars, the current bar being excluded \\
 \bottomrule
 \end{tabularx}
+\caption{Technical indicators (rules I1 to I9).}
 \end{table}
 
-\textbf{C\# strategy.} Copy \code{Custom/TemplateStrategy.cs} into the \code{Strategies} folder, remove \code{[HiddenStrategy]}, set a unique id, fill in the rules and rebuild.
+A \textit{cross above} between two series $a$ and $b$ at bar $i$ means $a_{i-1} \leq b_{i-1}$ and $a_i > b_i$, with all four values defined.
 
-\textbf{Common messages.} \emph{API key not configured}: set the key, or use a symbol with a seed file. \emph{Request limit reached}: wait for midnight UTC or use cached symbols. \emph{Prices are not adjusted}: normal for daily data; use weekly for long tests. \emph{Not enough trades for Monte Carlo}: at least 5 trades are needed.
+\subsection{The implemented strategies}
+
+We chose strategies of different families, so that they do not all fail in the same conditions. For each one we give the rule with its default parameters. The ``On SPY weekly'' lines refer to Table~\ref{tab:spy}.
+
+\paragraph{Trend following and momentum.} These strategies try to ride a movement that has already started.
+
+\strategy{Moving average crossover}
+{When the recent average price rises above a longer average, the trend is turning up. The strategy rides the trend and leaves when it turns down.}
+{Buy when SMA(20) crosses above SMA(50); sell when it crosses below.}
+{Averages are late, so entries and exits come after the move has started. In a sideways market the averages cross often, which gives many small losses and fees.}
+{the best risk-adjusted result of the table: only 9 trades, invested 70.9\,\% of the time.}
+
+\strategy{MACD crossover}
+{The MACD line is the gap between a fast and a slow exponential average. When it rises above its own average, the signal line, the trend is getting stronger.}
+{Buy when the MACD(12, 26, 9) line crosses above the signal line; sell when it crosses below.}
+{The MACD is late, like all moving averages, and in a sideways market the two lines cross often.}
+{59 trades for +94.0\,\%: more signals than the SMA crossover, for a much weaker result.}
+
+\strategy{Momentum (rate of change)}
+{A stock that has gone up recently tends to keep going up for a while.}
+{Buy when ROC(14) crosses above the threshold (0 by default); sell when it crosses below.}
+{The exit is late when a trend reverses suddenly, and in a choppy market the ROC oscillates around the threshold and gives false signals.}
+{+258.5\,\% with 68 trades, the most active strategy of the table.}
+
+\strategy{Donchian channel breakout}
+{When the price breaks above the highest point of recent weeks, a new upward move often starts. The strategy enters on the breakout and leaves when the price breaks its recent low.}
+{Buy when the close exceeds the highest high of the 20 previous bars; sell when it falls below the lowest low of the 10 previous bars.}
+{Many breakouts fail at once, and the strategy buys after the price has already risen.}
+{the smallest drawdown of the trend strategies (27.9\,\%) and a profit factor of 6.23.}
+
+\paragraph{Mean reversion.} These strategies bet the opposite: a price that moved too far tends to come back.
+
+\strategy{Bollinger mean reversion}
+{A price far below its average is unusually low and should come back towards the average.}
+{Buy when the close falls below the lower band (20 bars, 2 standard deviations) after being above or on it; sell when the close crosses above the middle band.}
+{In a strong downtrend the price can stay below the band and keep falling, so the strategy buys too early.}
+{invested only 14.2\,\% of the time, with a win rate of 80\,\%.}
+
+\strategy{RSI mean reversion}
+{A very low RSI means the stock fell a lot in a short time, so a bounce is likely.}
+{Buy when RSI(14) is below 30; sell when it is above 70.}
+{In a long downtrend the RSI can stay low for a long time while the price keeps falling.}
+{only 4 trades in 27 years, far too few to conclude anything.}
+
+\strategy{Bollinger + RSI double confirmation}
+{Two different indicators must agree before buying, which removes some false signals.}
+{Buy when the close is below the lower band and RSI(14) is below 30; sell when the close is above the middle band or the RSI is above 70.}
+{Signals are rare, and in a crash both indicators can stay low while the price keeps falling.}
+{6 trades, invested 5.0\,\% of the time.}
+
+\strategy{Trend-filtered RSI-2 (Connors)}
+{When the long-term trend is up, short dips are often bought back quickly. A long average checks the trend and a 2-bar RSI finds the dips.}
+{Buy when the close is above SMA(200) and RSI(2) is below 10; sell when the close is above SMA(5).}
+{If the trend breaks, a small dip can become a big fall. Trades are short and frequent, so fees matter a lot.}
+{the smallest drawdown of the table (23.5\,\%), with a win rate of 76.2\,\%.}
+
+\strategy{Consecutive down days}
+{After several falls in a row, sellers are often tired and the price bounces back.}
+{Buy when the close has fallen 3 times in a row (and the total fall reaches a minimum, 0 by default); sell at the first close higher than the previous one.}
+{In a crash the price can go down many more days in a row, and short trades make fees important.}
+{the weakest result of the table (+30.0\,\%).}
+
+\paragraph{Calendar effect and baseline.}
+
+\strategy{Turn of the month}
+{Stocks often rise around the turn of the month, when salaries and funds are invested.}
+{Buy when exactly 1 business day remains until the end of the month; sell on the 3rd bar of the new month. Daily data only. Bank holidays are not known to the application, so this is an approximation.}
+{The effect is small and can disappear for many months. Two trades per month make fees important.}
+{}
+
+\strategy{Buy and hold}
+{Markets tend to rise over the long term. Buying once and doing nothing avoids fees and timing mistakes, so every active strategy should try to do better.}
+{Buy on the first bar and never sell; the position is closed at the end of the period.}
+{It takes every market crash in full.}
+{+781.5\,\%, but with a drawdown of 54.6\,\%.}
+
+\subsection{Results on SPY}
+
+Table~\ref{tab:spy} shows the strategies on SPY weekly (1,406 bars, November 1999 to October 2026), with default parameters, a capital of 10,000 and a fee of 0.1\,\% per fill.
+
+\begin{table}[H]
+\centering\small
+\begin{tabular}{lrrrrrrr}
+\toprule
+\textbf{Strategy} & \textbf{Return} & \textbf{Ann.} & \textbf{Vol.} & \textbf{Sharpe} & \textbf{Max DD} & \textbf{Trades} & \textbf{Exposure} \\
+\midrule
+Moving average crossover & +759.4\,\% & 8.32\,\% & 12.4\,\% & 0.70 & 31.8\,\% & 9 & 70.9\,\% \\
+Donchian breakout & +300.9\,\% & 5.29\,\% & 9.8\,\% & 0.57 & 27.9\,\% & 22 & 61.0\,\% \\
+Buy and hold & +781.5\,\% & 8.42\,\% & 17.6\,\% & 0.55 & 54.6\,\% & 1 & 99.9\,\% \\
+Momentum (ROC) & +258.5\,\% & 4.86\,\% & 11.1\,\% & 0.48 & 38.5\,\% & 68 & 68.7\,\% \\
+Trend-filtered RSI-2 & +111.7\,\% & 2.83\,\% & 7.7\,\% & 0.40 & 23.5\,\% & 42 & 9.2\,\% \\
+RSI reversion & +156.9\,\% & 3.57\,\% & 11.1\,\% & 0.37 & 43.4\,\% & 4 & 20.6\,\% \\
+MACD crossover & +94.0\,\% & 2.49\,\% & 10.2\,\% & 0.29 & 40.9\,\% & 59 & 53.3\,\% \\
+Bollinger + RSI & +56.6\,\% & 1.68\,\% & 8.6\,\% & 0.24 & 37.4\,\% & 6 & 5.0\,\% \\
+Bollinger reversion & +67.7\,\% & 1.94\,\% & 11.2\,\% & 0.23 & 41.4\,\% & 20 & 14.2\,\% \\
+Consecutive down days & +30.0\,\% & 0.98\,\% & 7.2\,\% & 0.17 & 39.8\,\% & 57 & 7.3\,\% \\
+\bottomrule
+\end{tabular}
+\caption{Strategies on SPY weekly, default parameters, sorted by Sharpe ratio. Ann.: annualized return. Vol.: annualized volatility. Max DD: maximum drawdown. Turn of the month accepts daily data only and is absent.}
+\label{tab:spy}
+\end{table}
+
+Three observations stand out. First, only the moving average crossover comes close to buy \& hold in return, with a much smaller drawdown, because it stays out of the market during long declines. Second, the mean reversion strategies are rarely invested on weekly bars (between 5\,\% and 21\,\% of the time), which explains their low returns: they cannot earn anything while they stay out. Third, several results rest on very few trades, so this table alone does not prove that one strategy is better. Section~\ref{sec:robustness} deals with this problem.
+
+One detail deserves an explanation: the buy \& hold \emph{strategy} returns +781.5\,\% while the buy \& hold \emph{benchmark} of the same backtest returns +800.7\,\%. It is not a bug. The benchmark buys at the Open of the first bar (rule X14), whereas a signal at the close of the first bar is only executed at the Open of the second bar (rule X4). The strategy also pays a fee to exit at the end of the period, while the benchmark is never sold.
+
+\subsection{Custom strategies}
+
+\textbf{In C\#.} A fully commented template is hidden from the catalog by a \code{[HiddenStrategy]} attribute. A developer copies it, removes the attribute, changes the identifier, and writes the documentation, the parameters and the rules. The strategy then appears in every form of the website.
+
+\textbf{Without code.} Writing C\# is not realistic for every user, so we added a rule builder (Figure~\ref{fig:builder}). A strategy has an entry and an exit rule, each with 1 to 5 conditions combined by ``all'' or ``any''. A condition compares two operands with \code{>}, \code{<}, ``crosses above'' or ``crosses below''. An operand can be a price, the volume, a constant, or an indicator with its period.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.56\textwidth]{report-rule-builder.png}
+\caption{The no-code rule builder, editing the strategy ``RSI dip''.}
+\label{fig:builder}
+\end{figure}
+
+The factory validates a definition and returns \emph{all} its problems at once, each with its position, for example ``Entry condition 2: the right operand needs a period between 1 and 500.''. A valid definition becomes a normal \code{IStrategy}, with documentation generated from its rules, such as ``Buy when ALL of: Close > SMA(200); RSI(2) < 10''. It is stored as JSON in SQLite. A condition is false as long as one of its values is undefined, so warm-up periods need no special handling.
+
+\section{Backtesting engine}
+\label{sec:engine}
+
+\subsection{Execution model}
+
+The most common mistake in a backtest is to use information that was not yet available. Our model is deliberately simple. A strategy gives its signal at the close of a bar, and the engine executes it at the \textbf{Open of the next bar} (X4). A signal therefore cannot use a price that did not exist yet. Positions are long only, without leverage, and use all the cash (X5).
+
+With a price $p$, a slippage $s$ and a fee rate $f$, rule X6 gives:
+\begin{align*}
+\text{fill}_{\text{buy}} &= p\,(1+s), & \text{fill}_{\text{sell}} &= p\,(1-s), \\
+q &= \frac{\text{cash}}{\text{fill}_{\text{buy}}\,(1+f)}, & \text{proceeds} &= q\,\text{fill}_{\text{sell}}\,(1-f).
+\end{align*}
+
+For every bar $i$ of the period, the engine applies these steps in order (X7): execute at the Open the signal of bar $i-1$; if a position is open, check the protective exits; on the last bar, sell any open position at the Close; and record the equity, $\text{cash} + q \times \text{Close}$. Bars before the requested period are given to the strategy to warm up its indicators, but their signals are ignored (X2).
+
+\textbf{A worked example.} With a capital of 10,000, a fee of 0.1\,\%, a buy at 102 and a sale at 106, the quantity is $10{,}000 / (102 \times 1.001) = 97.9413$. The proceeds are $97.9413 \times 106 \times 0.999 = 10{,}371.39$, so the net profit is 371.39, after 20.37 of fees. Figure~\ref{fig:hand} shows this scenario, computed independently from the engine.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.78\textwidth]{part3-02-hand-check-spreadsheet.png}
+\caption{Six-bar scenario recomputed by hand: quantity, fees, net profit and equity per bar.}
+\label{fig:hand}
+\end{figure}
+
+\subsection{Advanced orders}
+
+Let $E$ be the entry fill and \textit{peak} the highest High since the entry, before the current bar. The stop level is $S = \max\big(E(1-\text{SL}),\ \text{peak}(1-\text{TS})\big)$ and the target is $T = E(1+\text{TP})$. Rule X8 then applies:
+
+\begin{itemize}
+\item \textbf{Gap} (not on the entry bar): if the bar opens at or below $S$, or at or above $T$, the exit is at the Open, because the level could not be reached.
+\item \textbf{During the bar:} if $\text{Low} \leq S$ the exit is at $S$; otherwise, if $\text{High} \geq T$, the exit is at $T$.
+\end{itemize}
+
+When both levels are touched in one bar, the order is unknown with daily or weekly data. We chose the prudent assumption: the stop always comes first. The exit price then goes through the slippage and the fee like any other sale (Figure~\ref{fig:realtrades}).
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.9\textwidth]{report-real-trades.png}
+\caption{Trade log of a moving average crossover on AAPL weekly with an 8\,\% stop-loss, a 25\,\% take-profit and a 10\,\% trailing stop.}
+\label{fig:realtrades}
+\end{figure}
+
+\subsection{Metrics}
+
+With $P$ the number of periods per year (252 or 52), $E_t$ the equity, $I$ the initial capital, $r_t = E_t/E_{t-1}-1$ and $r_f$ the risk-free rate per period:
+
+\begin{table}[H]
+\centering\small
+\begin{tabularx}{\textwidth}{lY}
+\toprule
+\textbf{Metric} & \textbf{Formula} \\
+\midrule
+Cumulative return & $E_{\text{final}}/I - 1$ \\
+Annualized return & $(E_{\text{final}}/I)^{1/\text{years}} - 1$, with years $=$ days$/365.25$ \\
+Volatility & sample standard deviation of $r_t$, times $\sqrt{P}$ \\
+Sharpe ratio & $(\overline{r} - r_f)\,/\,\sigma(r) \times \sqrt{P}$ \\
+Sortino ratio & $(\overline{r} - r_f)\,/\,DD \times \sqrt{P}$, with $DD = \sqrt{\frac{1}{n}\sum \min(0, r_t - r_f)^2}$ \\
+Maximum drawdown & largest $(\text{peak} - E_t)/\text{peak}$, the peak starting at $I$ \\
+Calmar ratio & annualized return $/$ maximum drawdown \\
+Win rate & share of trades with a positive net profit \\
+Profit factor & sum of gains $/$ absolute sum of losses \\
+Exposure & share of the points where a position is held \\
+\bottomrule
+\end{tabularx}
+\caption{Main performance metrics (rules M1 to M12). The benchmark uses the same formulas.}
+\end{table}
+
+A ratio that cannot be defined, such as the Sharpe ratio of a flat curve, is \code{null} and displayed as ``n/a''. Replacing it with 0 would present an undefined value as a real result.
+
+\subsection{Optimisation heatmap}
+
+The heatmap tests every pair of values of two parameters, up to 625 cells. Prices are loaded once, then each cell goes through the same validation and engine as a normal backtest. An invalid pair (for example \code{fast} $\geq$ \code{slow}) gives an empty cell with its message and does not stop the grid.
+
+An optimiser always finds a best cell, even on noise. So if the best value is positive and the average of its neighbours is below half of it (rule O4), the page shows an ``isolated peak'' warning. In Figure~\ref{fig:heatmap}, the best profit factor is 110.28, a suspicious number which the warning rightly flags.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.74\textwidth]{part4-14-heatmap.png}
+\caption{Heatmap of RSI mean reversion on AAPL weekly, with the isolated peak warning.}
+\label{fig:heatmap}
+\end{figure}
+
+\section{Robustness analysis}
+\label{sec:robustness}
+
+A good backtest proves little on its own: the result can come from luck or from fitting the past. We added two tools to measure this.
+
+\subsection{Train/test validation}
+
+The Validate page splits the selected period in two (rules T1 to T3). The first $\lfloor N \times \text{train} \rfloor$ bars, 70\,\% by default, form the training period. The page runs the heatmap on them only, takes the best cell, and tests those parameters once on the remaining bars. The test period may use earlier bars to warm up its indicators, which is not an information leak since every signal still depends only on past bars.
+
+On AAPL weekly since 2010 (Figure~\ref{fig:traintest}), the 876 bars split into 613 training bars and 263 test bars. The best parameters are fast 26 and slow 35. The Sharpe ratio falls from 1.02 in training to 0.75 in test. This drop is expected, since the best cell was selected for being the best on those data. With 5 and 6 trades, neither number is statistically solid.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.78\textwidth]{report-train-test.png}
+\caption{Train/test validation of the moving average crossover on AAPL weekly.}
+\label{fig:traintest}
+\end{figure}
+
+\subsection{Monte Carlo simulation}
+
+The Monte Carlo analysis asks how much of a result depends on the particular sequence of trades. We take the returns of the $k$ trades of a backtest (at least 5) and draw $k$ of them at random with replacement. The trajectory starts at $V_0 = 1$ and compounds: $V_j = V_{j-1}(1+r)$. This gives a final return and a maximum drawdown. Repeating it between 100 and 10,000 times gives two distributions, summarised by percentiles and histograms (MC1 to MC6). One generator seeded by the user is used, so the same seed always gives the same result.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.62\textwidth]{report-montecarlo-page.png}
+\caption{Monte Carlo of \textit{Consecutive down days} on AAPL weekly (64 trades, 1,000 simulations).}
+\label{fig:mcpage}
+\end{figure}
+
+In Figure~\ref{fig:mcpage}, the strategy has a 68.7\,\% probability of loss, and its actual result ($-41.98$\,\%) is near the median of the distribution: it is simply a losing strategy, and bad luck does not explain it. Conversely, the moving average crossover on MSFT weekly (Figure~\ref{fig:pdf}) has an 8.5\,\% probability of loss, but its percentiles range from $-17.4$\,\% (P5) to +29,111\,\% (P95). With 15 trades, one of which earned +521\,\%, the result depends heavily on how many times this single trade is drawn.
+
+This drawdown is measured trade by trade (rule MC7). It is not comparable with the bar-by-bar maximum drawdown of the results page, and both the interface and the PDF say so.
+
+\section{Web application}
+\label{sec:web}
+
+The application uses ASP.NET Core MVC. The navigation has six entries: Backtest, Compare, Optimize, Validate, Strategies and Data. A session typically starts on the Backtest page. The results page shows the 13 metrics against buy \& hold, four charts drawn with Chart.js and a sortable trade log (Figures~\ref{fig:metrics} and~\ref{fig:charts}). From there, the user can download the PDF or the trades, run a Monte Carlo, optimise the strategy, or copy a permanent link.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.84\textwidth]{report-real-metrics.png}
+\caption{Results of a real backtest: AAPL weekly, moving average crossover with stops.}
+\label{fig:metrics}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.6\textwidth]{report-charts.png}
+\caption{Charts of a result: equity, drawdowns, price with indicators and trade markers, and an oscillator.}
+\label{fig:charts}
+\end{figure}
+
+Our main design choices were the following:
+
+\begin{itemize}
+\item \textbf{No financial logic in the web project.} Controllers call the services and view models format the values. The only computations concern presentation and the train/test split.
+\item \textbf{Nothing hard-coded about strategies.} Forms, lists and cards are generated from the catalog, so a new strategy appears without any change in the web project.
+\item \textbf{Only the contract exceptions are caught.} Validation and market data errors become an alert above the form, with the input kept. Anything else is a bug and reaches a generic error page.
+\item \textbf{Forms that work without JavaScript.} The server renders and validates them; JavaScript modules only improve them.
+\item \textbf{Local libraries.} Bootstrap, Chart.js and its matrix plugin are served by the application, with no CDN.
+\end{itemize}
+
+\textbf{Comparator.} The Compare page runs 2 to 5 strategies with default parameters on the same data, and draws their equity curves with buy \& hold (Figure~\ref{fig:compare}). If one strategy fails, its message is displayed without blocking the others.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.66\textwidth]{report-compare.png}
+\caption{Comparator on AAPL weekly since 2015. On this symbol, buy \& hold returned +1,261.88\,\%, far more than any strategy.}
+\label{fig:compare}
+\end{figure}
+
+\textbf{Permanent links.} Every result has a \code{GET} URL containing all its settings. One class, \code{BacktestQuery}, reads and writes these URLs, and redirects to a single canonical form. Since the cache is not refreshed automatically, a link gives the same result later, as long as nobody refreshes that series.
+
+\section{Reports and deployment}
+\label{sec:reports}
+
+\subsection{PDF report}
+
+The report is generated with QuestPDF, and its charts are drawn with ScottPlot. Every number is printed as it comes in \code{BacktestResult} and \code{MonteCarloResult}: the report recomputes nothing, so it cannot disagree with the screen. It contains a summary page, the drawdown and price charts, the complete trade log, and an optional Monte Carlo page (Figure~\ref{fig:pdf}). Numbers are always formatted in en-US, and the date in the footer comes from the injected clock, which makes tests reproducible.
+
+\begin{figure}[H]
+\centering
+\includegraphics[height=7.4cm]{part1-08-pdf-page1.png}\hspace{4mm}
+\includegraphics[height=7.4cm]{part1-09-pdf-page2.png}\\[4mm]
+\includegraphics[width=0.46\textwidth]{part1-10-pdf-trades.png}\hspace{4mm}
+\includegraphics[width=0.46\textwidth]{part1-12-pdf-montecarlo.png}
+\caption{PDF report for MSFT weekly (SMA 20/50): summary, charts, trade log and Monte Carlo page.}
+\label{fig:pdf}
+\end{figure}
+
+We checked one real report by hand. For MSFT weekly, the 15 net profits add up to 85,964.29, so the final equity is $10{,}000 + 85{,}964.29 = 95{,}964.29$, which is the printed value. The cumulative return, annualized return, Calmar ratio, win rate and profit factor also match when recomputed from the printed values. Trades can also be downloaded as CSV.
+
+\subsection{Docker}
+
+\code{docker compose up --build} starts the application on port 8080. The \code{Dockerfile} has two stages. The .NET 10 SDK stage builds with warnings treated as errors and runs every test, so an image can only exist for a solution whose tests pass. The ASP.NET runtime stage runs the application as a non-root user, with the fonts needed by the charts. The database is in a named volume, the seed files are copied into the image, and the API key comes from a local \code{.env} file which is never committed.
+
+We tested this with Docker Desktop: the image built with its tests, the application answered on port 8080, the database was created in the volume, a PDF with its Monte Carlo page was generated, and a real API refresh succeeded.
+
+\section{Quality and teamwork}
+
+\subsection{Tests}
+
+The solution has 1,494 automated tests written with xUnit and FluentAssertions (Table~\ref{tab:tests}). They use no network and no real clock, and any randomness has a fixed seed. Each test quotes the identifier of the rule it checks. In the engine, expected values are recomputed from the formula in the test, never copied from the output, and property tests run random signals to check invariants: the equity is never negative, the final equity equals the capital plus the profits, trades never overlap, and truncating the future does not change the past.
+
+\begin{table}[H]
+\centering\small
+\begin{tabular}{lrrr}
+\toprule
+\textbf{Project} & \textbf{Tests} & \textbf{Source lines} & \textbf{Test lines} \\
+\midrule
+Web & 923 & 7,127 & 9,384 \\
+Engine & 184 & 1,023 & 2,427 \\
+Strategies & 168 & 2,029 & 1,662 \\
+Data & 124 & 1,201 & 1,563 \\
+Reports & 55 & 771 & 577 \\
+Analytics & 14 & 212 & 217 \\
+Fakes & 14 & 981 & 144 \\
+Core & 12 & 713 & 70 \\
+\midrule
+\textbf{Total} & \textbf{1,494} & \textbf{14,057} & \textbf{16,044} \\
+\bottomrule
+\end{tabular}
+\caption{Automated tests and lines of C\# per project.}
+\label{tab:tests}
+\end{table}
+
+Razor views, JavaScript and CSS were checked by hand in a browser, and the text of a PDF cannot be read back by the tests, so it is tested before layout.
+
+\subsection{Workflow and continuous integration}
+
+The main branch always had to compile and pass its tests. All changes arrived by pull request, from a branch named after its part, and 42 were merged between 13 October and 8 November 2026. GitHub Actions runs two checks on each of them (Figure~\ref{fig:ci}): one compiles with warnings as errors and runs all the tests, the other checks the format of the title and verifies that the changed files belong to the part of the branch. Branch protection requires these checks and forbids force-pushes.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.78\textwidth]{part4-19-pr-8.png}
+\caption{Checks of a pull request.}
+\label{fig:ci}
+\end{figure}
+
+At first, each pull request needed an approval from another member. On 15 October we removed this requirement because it slowed the team down too much, while keeping it for contract changes. With hindsight this was a compromise: the CI guarantees that the code compiles and passes its tests, but it does not replace a human reading the code.
+
+\subsection{What we learned}
+
+Our most useful decision was the first one: spending time on a precise contract before writing code, which allowed four people to work in parallel without ever changing it. We also learned that a backtest can be wrong in silent ways, such as a look-ahead, a misread decimal or an error message saved as data. For that reason, the tools that show the limits of a result (train/test, Monte Carlo, the overfitting warning, the data quality report) ended up being as important to us as the strategies themselves.
+
+\section{Limitations and future work}
+
+\textbf{Data.} The free plan gives only 100 daily bars, and they are not adjusted, so a split in this window would appear as a price jump. Long tests have to be run in weekly. The seed files are snapshots of October 2026, their last weekly bar is a week that was still in progress, and they are included for this academic project only. A symbol refreshed before its seed file is imported bypasses the seed for good. A paid source would give long adjusted daily histories.
+
+\textbf{Strategies.} Strategies are long only. \textit{Turn of the month} ignores market holidays, and the no-code builder cannot express every rule.
+
+\textbf{Engine.} There is no short selling and no leverage. Orders are filled at the next Open without any volume limit, which is optimistic for large orders. Inside a bar, the order of the High and the Low is unknown, so the ``stop first'' rule remains an assumption. Cash earns no interest and taxes are ignored.
+
+\textbf{Robustness.} Train/test uses a single split, and walk-forward validation, with several successive splits, would be a natural improvement. Monte Carlo resamples the trades of a single backtest and assumes they are independent, which ignores market regimes. Its equal-width histograms can be dominated by one extreme value.
+
+\textbf{Web application.} Only the equity chart has a logarithmic scale, so old prices are squashed near zero on long histories. The comparator uses default parameters. The best cell of a heatmap may rest on very few trades. Views and JavaScript have no automated tests.
+
+\textbf{Method.} Our demonstration symbols are large, successful US companies and an index, chosen with hindsight. This is a survivorship and selection bias: on such symbols buy \& hold is very hard to beat, which says more about the symbols than about the strategies. And in all cases, past results do not predict future results.
 
 \end{document}
