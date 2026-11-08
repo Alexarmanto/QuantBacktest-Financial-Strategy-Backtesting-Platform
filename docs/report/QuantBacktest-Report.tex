@@ -11,6 +11,7 @@
 \usepackage{float}
 \usepackage{booktabs}
 \usepackage{tabularx}
+\usepackage{longtable}
 \usepackage{array}
 \usepackage{xcolor}
 \usepackage{enumitem}
@@ -109,7 +110,7 @@ Reports with graphs and trade logs & PDF report and CSV export (Section~\ref{sec
 
 Beyond the subject, we added features whose purpose is mostly to help the user trust a result, or to distrust it: stop-loss, take-profit, trailing stop and slippage; an optimisation heatmap with an overfitting warning; train/test validation; a comparator of strategies; advanced metrics (Sortino, Calmar, profit factor, exposure); indicators drawn on the charts and an explanatory card for each strategy; a Monte Carlo simulation on the trades; a data quality panel and an API quota counter; a permanent link for each result; and a Docker image.
 
-The interface is presented in the demonstration video, so this report focuses on how the platform works, on the choices we made, and on what its results mean.
+The interface is presented in the demonstration video, so this report focuses on how the platform works, on the choices we made, and on what its results mean. Appendix~\ref{app:manual} is a short user manual.
 
 \begin{table}[H]
 \centering\small
@@ -152,7 +153,7 @@ Four people had to work at the same time without blocking each other, and most o
 \label{fig:layers}
 \end{figure}
 
-\code{Core} contains only interfaces (\code{IMarketDataService}, \code{IStrategy}, \code{IBacktestEngine}\dots), data models (\code{PriceSeries}, \code{BacktestResult}\dots) and constants. A method signature cannot say everything: it cannot say, for example, at which price an order is filled. So we also wrote a contract with numbered rules (X1--X15 for the execution of orders, M1--M14 for the metrics, D1--D8 for the data, and so on), which the code and the tests quote. Once validated, it was frozen: changing it required the agreement of all four members. In the end nobody had to change it.
+\code{Core} contains only interfaces (\code{IMarketDataService}, \code{IStrategy}, \code{IBacktestEngine}\dots), data models (\code{PriceSeries}, \code{BacktestResult}\dots) and constants. A method signature cannot say everything: it cannot say, for example, at which price an order is filled. So we also wrote a contract with numbered rules (X1--X15 for the execution of orders, M1--M14 for the metrics, D1--D8 for the data, and so on), which the code and the tests quote. All of these rules are listed in Appendix~\ref{app:contract}. Once validated, it was frozen: changing it required the agreement of all four members. In the end nobody had to change it.
 
 \subsection{Request flow}
 
@@ -283,8 +284,8 @@ Figure~\ref{fig:quality} shows that it finds real events: the 11-day gap of Sept
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.72\textwidth]{part4-12-data-quality-detail.png}
-\caption{Quality report of JPM weekly: one gap and five price jumps.}
+\includegraphics[width=0.94\textwidth]{report-quality.png}
+\caption{Anomalies found by the quality report of JPM weekly: one gap and five price jumps.}
 \label{fig:quality}
 \end{figure}
 
@@ -410,23 +411,24 @@ Table~\ref{tab:spy} shows the strategies on SPY weekly (1,406 bars, November 199
 
 \begin{table}[H]
 \centering\small
-\begin{tabular}{lrrrrrrr}
+\setlength{\tabcolsep}{4pt}\footnotesize
+\begin{tabular}{lrrrrrrrrr}
 \toprule
-\textbf{Strategy} & \textbf{Return} & \textbf{Ann.} & \textbf{Vol.} & \textbf{Sharpe} & \textbf{Max DD} & \textbf{Trades} & \textbf{Exposure} \\
+\textbf{Strategy} & \textbf{Return} & \textbf{Ann.} & \textbf{Vol.} & \textbf{Sharpe} & \textbf{Max DD} & \textbf{Trades} & \textbf{Win} & \textbf{PF} & \textbf{Exposure} \\
 \midrule
-Moving average crossover & +759.4\,\% & 8.32\,\% & 12.4\,\% & 0.70 & 31.8\,\% & 9 & 70.9\,\% \\
-Donchian breakout & +300.9\,\% & 5.29\,\% & 9.8\,\% & 0.57 & 27.9\,\% & 22 & 61.0\,\% \\
-Buy and hold & +781.5\,\% & 8.42\,\% & 17.6\,\% & 0.55 & 54.6\,\% & 1 & 99.9\,\% \\
-Momentum (ROC) & +258.5\,\% & 4.86\,\% & 11.1\,\% & 0.48 & 38.5\,\% & 68 & 68.7\,\% \\
-Trend-filtered RSI-2 & +111.7\,\% & 2.83\,\% & 7.7\,\% & 0.40 & 23.5\,\% & 42 & 9.2\,\% \\
-RSI reversion & +156.9\,\% & 3.57\,\% & 11.1\,\% & 0.37 & 43.4\,\% & 4 & 20.6\,\% \\
-MACD crossover & +94.0\,\% & 2.49\,\% & 10.2\,\% & 0.29 & 40.9\,\% & 59 & 53.3\,\% \\
-Bollinger + RSI & +56.6\,\% & 1.68\,\% & 8.6\,\% & 0.24 & 37.4\,\% & 6 & 5.0\,\% \\
-Bollinger reversion & +67.7\,\% & 1.94\,\% & 11.2\,\% & 0.23 & 41.4\,\% & 20 & 14.2\,\% \\
-Consecutive down days & +30.0\,\% & 0.98\,\% & 7.2\,\% & 0.17 & 39.8\,\% & 57 & 7.3\,\% \\
+Moving average crossover & +759.4\,\% & 8.32\,\% & 12.4\,\% & 0.70 & 31.8\,\% & 9 & 88.9\,\% & 98.19 & 70.9\,\% \\
+Donchian breakout & +300.9\,\% & 5.29\,\% & 9.8\,\% & 0.57 & 27.9\,\% & 22 & 63.6\,\% & 6.23 & 61.0\,\% \\
+Buy and hold & +781.5\,\% & 8.42\,\% & 17.6\,\% & 0.55 & 54.6\,\% & 1 & 100.0\,\% & n/a & 99.9\,\% \\
+Momentum (ROC) & +258.5\,\% & 4.86\,\% & 11.1\,\% & 0.48 & 38.5\,\% & 68 & 42.6\,\% & 3.19 & 68.7\,\% \\
+Trend-filtered RSI-2 & +111.7\,\% & 2.83\,\% & 7.7\,\% & 0.40 & 23.5\,\% & 42 & 76.2\,\% & 3.94 & 9.2\,\% \\
+RSI reversion & +156.9\,\% & 3.57\,\% & 11.1\,\% & 0.37 & 43.4\,\% & 4 & 75.0\,\% & 72.33 & 20.6\,\% \\
+MACD crossover & +94.0\,\% & 2.49\,\% & 10.2\,\% & 0.29 & 40.9\,\% & 59 & 45.8\,\% & 1.69 & 53.3\,\% \\
+Bollinger + RSI & +56.6\,\% & 1.68\,\% & 8.6\,\% & 0.24 & 37.4\,\% & 6 & 66.7\,\% & 3.10 & 5.0\,\% \\
+Bollinger reversion & +67.7\,\% & 1.94\,\% & 11.2\,\% & 0.23 & 41.4\,\% & 20 & 80.0\,\% & 2.61 & 14.2\,\% \\
+Consecutive down days & +30.0\,\% & 0.98\,\% & 7.2\,\% & 0.17 & 39.8\,\% & 57 & 68.4\,\% & 1.47 & 7.3\,\% \\
 \bottomrule
 \end{tabular}
-\caption{Strategies on SPY weekly, default parameters, sorted by Sharpe ratio. Ann.: annualized return. Vol.: annualized volatility. Max DD: maximum drawdown. Turn of the month accepts daily data only and is absent.}
+\caption{Strategies on SPY weekly, default parameters, sorted by Sharpe ratio. Ann.: annualized return. Vol.: annualized volatility. Max DD: maximum drawdown. Win: win rate. PF: profit factor. Turn of the month accepts daily data only and is absent.}
 \label{tab:spy}
 \end{table}
 
@@ -526,7 +528,7 @@ An optimiser always finds a best cell, even on noise. So if the best value is po
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.74\textwidth]{part4-14-heatmap.png}
+\includegraphics[width=\textwidth]{report-heatmap.png}
 \caption{Heatmap of RSI mean reversion on AAPL weekly, with the isolated peak warning.}
 \label{fig:heatmap}
 \end{figure}
@@ -544,14 +546,14 @@ On AAPL weekly since 2010 (Figure~\ref{fig:traintest}), the 876 bars split into 
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.78\textwidth]{report-train-test.png}
-\caption{Train/test validation of the moving average crossover on AAPL weekly.}
+\includegraphics[width=0.62\textwidth]{report-train-test.png}
+\caption{Train and test results of the moving average crossover on AAPL weekly.}
 \label{fig:traintest}
 \end{figure}
 
 \subsection{Monte Carlo simulation}
 
-The Monte Carlo analysis asks how much of a result depends on the particular sequence of trades. We take the returns of the $k$ trades of a backtest (at least 5) and draw $k$ of them at random with replacement. The trajectory starts at $V_0 = 1$ and compounds: $V_j = V_{j-1}(1+r)$. This gives a final return and a maximum drawdown. Repeating it between 100 and 10,000 times gives two distributions, summarised by percentiles and histograms (MC1 to MC6). One generator seeded by the user is used, so the same seed always gives the same result.
+The Monte Carlo analysis asks how much of a result depends on the particular sequence of trades. We take the returns of the $k$ trades of a backtest (at least 5) and draw $k$ of them at random with replacement. The trajectory starts at $V_0 = 1$ and compounds: $V_j = V_{j-1}(1+r)$. This gives a final return and a maximum drawdown. Repeating it between 100 and 10,000 times gives two distributions, summarised by percentiles and histograms (MC1 to MC7). One generator seeded by the user is used, so the same seed always gives the same result.
 
 \begin{figure}[H]
 \centering
@@ -567,7 +569,7 @@ This drawdown is measured trade by trade (rule MC7). It is not comparable with t
 \section{Web application}
 \label{sec:web}
 
-The application uses ASP.NET Core MVC. The navigation has six entries: Backtest, Compare, Optimize, Validate, Strategies and Data. A session typically starts on the Backtest page. The results page shows the 13 metrics against buy \& hold, four charts drawn with Chart.js and a sortable trade log (Figures~\ref{fig:metrics} and~\ref{fig:charts}). From there, the user can download the PDF or the trades, run a Monte Carlo, optimise the strategy, or copy a permanent link.
+The application uses ASP.NET Core MVC. The navigation has six entries: Backtest, Compare, Optimize, Validate, Strategies and Data. A session typically starts on the Backtest page. The results page shows the 13 metrics against buy \& hold, charts drawn with Chart.js and a sortable trade log (Figures~\ref{fig:metrics} and~\ref{fig:charts}). From there, the user can download the PDF or the trades, run a Monte Carlo, optimise the strategy, or copy a permanent link.
 
 \begin{figure}[H]
 \centering
@@ -578,8 +580,8 @@ The application uses ASP.NET Core MVC. The navigation has six entries: Backtest,
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.6\textwidth]{report-charts.png}
-\caption{Charts of a result: equity, drawdowns, price with indicators and trade markers, and an oscillator.}
+\includegraphics[width=0.84\textwidth]{report-charts.png}
+\caption{Charts of the same backtest: equity, drawdowns, and price with its SMA indicators and trade markers. A strategy using an oscillator, such as the RSI, gets a fourth chart.}
 \label{fig:charts}
 \end{figure}
 
@@ -625,7 +627,13 @@ We checked one real report by hand. For MSFT weekly, the 15 net profits add up t
 
 \subsection{Docker}
 
-\code{docker compose up --build} starts the application on port 8080. The \code{Dockerfile} has two stages. The .NET 10 SDK stage builds with warnings treated as errors and runs every test, so an image can only exist for a solution whose tests pass. The ASP.NET runtime stage runs the application as a non-root user, with the fonts needed by the charts. The database is in a named volume, the seed files are copied into the image, and the API key comes from a local \code{.env} file which is never committed.
+One command starts the application on port 8080:
+
+\begin{lstlisting}
+docker compose up --build
+\end{lstlisting}
+
+The \code{Dockerfile} has two stages. The .NET 10 SDK stage builds with warnings treated as errors and runs every test, so an image can only exist for a solution whose tests pass. The ASP.NET runtime stage runs the application as a non-root user, with the fonts needed by the charts. The database is in a named volume, the seed files are copied into the image, and the API key comes from a local \code{.env} file which is never committed.
 
 We tested this with Docker Desktop: the image built with its tests, the application answered on port 8080, the database was created in the volume, a PDF with its Monte Carlo page was generated, and a real API refresh succeeded.
 
@@ -661,7 +669,7 @@ Razor views, JavaScript and CSS were checked by hand in a browser, and the text 
 
 \subsection{Workflow and continuous integration}
 
-The main branch always had to compile and pass its tests. All changes arrived by pull request, from a branch named after its part, and 42 were merged between 13 October and 8 November 2026. GitHub Actions runs two checks on each of them (Figure~\ref{fig:ci}): one compiles with warnings as errors and runs all the tests, the other checks the format of the title and verifies that the changed files belong to the part of the branch. Branch protection requires these checks and forbids force-pushes.
+The main branch always had to compile and pass its tests. All changes arrived by pull request, from a branch named after its part, and more than 45 were merged from 13 October 2026 onwards. GitHub Actions runs two checks on each of them (Figure~\ref{fig:ci}): one compiles with warnings as errors and runs all the tests, the other checks the format of the title and verifies that the changed files belong to the part of the branch. Branch protection requires these checks and forbids force-pushes.
 
 \begin{figure}[H]
 \centering
@@ -689,5 +697,197 @@ Our most useful decision was the first one: spending time on a precise contract 
 \textbf{Web application.} Only the equity chart has a logarithmic scale, so old prices are squashed near zero on long histories. The comparator uses default parameters. The best cell of a heatmap may rest on very few trades. Views and JavaScript have no automated tests.
 
 \textbf{Method.} Our demonstration symbols are large, successful US companies and an index, chosen with hindsight. This is a survivorship and selection bias: on such symbols buy \& hold is very hard to beat, which says more about the symbols than about the strategies. And in all cases, past results do not predict future results.
+
+\clearpage
+\appendix
+
+\section{User manual}
+\label{app:manual}
+
+\subsection*{Installation}
+
+The application runs with Docker Desktop, or directly with the .NET 10 SDK. Both commands are run from the root of the project.
+
+\begin{lstlisting}
+docker compose up --build                     # then open http://localhost:8080
+dotnet run --project src/QuantBacktest.Web    # then open http://localhost:5080
+\end{lstlisting}
+
+\subsection*{API key or seed mode}
+
+\textbf{Seed mode, without a key.} Nothing has to be configured: AAPL, MSFT, SPY and JPM work in daily and weekly from the files shipped with the project. Only new downloads are unavailable.
+
+\textbf{With a free Alpha Vantage key.} With Docker, copy \code{.env.example} to \code{.env} and write the key after \code{ALPHAVANTAGE\_API\_KEY=}. Without Docker, store it in the user-secrets:
+
+\begin{lstlisting}
+cd src/QuantBacktest.Web
+dotnet user-secrets set "AlphaVantage:ApiKey" "<your key>"
+\end{lstlisting}
+
+\subsection*{Typical journey}
+
+\begin{enumerate}
+\item \textbf{Backtest.} Choose a symbol, a timeframe, a strategy and its parameters, then the capital, fee and slippage. Dates are optional, and an empty stop is disabled. Click \textbf{Run backtest} and read the metrics against buy \& hold, the charts and the trade log. ``n/a'' means that a ratio is undefined.
+\item \textbf{Compare.} Run 2 to 5 strategies with their default parameters on the same data.
+\item \textbf{Optimize.} Choose two parameters, their ranges and a metric. An ``isolated peak'' warning suggests overfitting: prefer a stable area.
+\item \textbf{Validate.} Optimise on the first part of the period and test the best parameters on the rest. A strong fall in the test column is a warning.
+\item \textbf{PDF.} From a result, click \textbf{Download PDF}, or \textbf{Download trades CSV} for the trades. \textbf{Run Monte Carlo} (at least 5 trades) offers a PDF with the Monte Carlo section.
+\end{enumerate}
+
+\textbf{Other pages.} \textbf{Strategies} explains each strategy and creates no-code strategies. \textbf{Data} lists the cached series and their quality reports, and refreshes a series from the API (1 of the 25 daily requests shown by the badge).
+
+\textbf{Common messages.} \emph{API key not configured}: set the key, or use a symbol with a seed file. \emph{Request limit reached}: wait for midnight UTC, or use cached symbols. \emph{Prices are not adjusted}: normal for daily data; use weekly for long tests.
+
+\clearpage
+\section{Contract: the numbered rules}
+\label{app:contract}
+
+These are the rules quoted throughout this report, translated and condensed from the contract the team worked from. In the execution rules, \textit{first} and \textit{last} are the indices of the first and last bars of the tested period, \textit{fee} is the fee rate and \textit{slip} the slippage rate.
+
+\footnotesize
+\setlength{\LTpre}{4pt}
+\setlength{\LTpost}{6pt}
+
+\subsection*{Execution of orders}
+\begin{longtable}{@{}p{0.9cm}p{14.8cm}@{}}
+\toprule
+\textbf{Rule} & \textbf{Content} \\
+\midrule
+\endhead
+X1 & Period: bars with From $\leq$ date $\leq$ To, bounds included (no bound means the bounds of the series). From $>$ To, or fewer than 2 bars, is a validation error. \\
+X2 & Warm-up: strategies and indicators receive the bars from the start of the series up to \textit{last}, including those before From. Only the indicators of the period are kept. \\
+X3 & No look-ahead: the signal of bar $i$ is emitted at its close and depends only on bars $0$ to $i$. \\
+X4 & Deferred execution: the signal of bar $i$ (\textit{first} $\leq i <$ \textit{last}) is executed at the Open of bar $i+1$. Signals before \textit{first} and the signal of \textit{last} are ignored. \\
+X5 & Positions: long only, no leverage, 100\,\% of the cash. Buy when flat enters; Sell when invested exits fully. Buy when invested, Sell when flat and Hold do nothing. \\
+X6 & Fills: buy at price $\times$ (1 + slip), sell at price $\times$ (1 $-$ slip). Fractional quantity $q$ = cash / (fill $\times$ (1 + fee)). Purchase cost = $q \times$ fill $\times$ (1 + fee). Sale proceeds = $q \times$ fill $\times$ (1 $-$ fee). Fees of one side = $q \times$ fill $\times$ fee. \\
+X7 & Order on each bar: (a) execute at the Open the pending signal of the previous bar; (b) if a position is open, including one opened in (a), apply the protective exits; (c) on the last bar, liquidate any position at the Close; (d) record the equity. \\
+X8 & Protective exits: $E$ is the entry fill. \textit{peak} is the maximum of $E$ and of the Highs from the entry bar to bar $i-1$ (on the entry bar, \textit{peak} = $E$). The stop $S$ is the highest active level among $E(1-\text{SL})$ and \textit{peak}$(1-\text{TS})$; the target is $T = E(1+\text{TP})$. Gap, except on the entry bar: if Open $\leq S$, exit at the Open; else if Open $\geq T$, exit at the Open. Intrabar: else if Low $\leq S$, exit at $S$; else if High $\geq T$, exit at $T$. The stop always comes before the target. The resulting price then goes through X6. \\
+X9 & Exit reason: signal gives Signal; target gives TakeProfit; stop gives TrailingStop if the trailing level is strictly above the stop-loss level, or if only the trailing stop is active, otherwise StopLoss; final liquidation gives EndOfData. After a protective exit, the signal at the close of the same bar may reopen a position on the next bar. \\
+X10 & Final liquidation: a position still open at the end of the last bar is sold at the Close (X6), with reason EndOfData. \\
+X11 & Equity: cash + $q \times$ Close at each close. A position is counted as held at that close, including during the final liquidation. The first point always equals the initial capital. \\
+X12 & HoldingBars: exit index $-$ entry index for an exit at the Open or intrabar, plus 1 for EndOfData. A stop hit on the entry bar gives 0. \\
+X13 & Trade: prices are fills; fees are entry plus exit fees; net profit = proceeds $-$ cost; return = net profit / cost. Trades are ordered by entry date. \\
+X14 & Buy \& hold benchmark: bought at the Open of \textit{first}, with slippage and entry fee, valued at each Close, never sold, with no protection. \\
+X15 & Drawdown per point: (peak $-$ equity) / peak, the peak starting at the initial capital, never negative. The same rule applies to the benchmark. \\
+\bottomrule
+\end{longtable}
+
+\subsection*{Metrics}
+With $P$ = 252 or 52, $E_0,\dots,E_{n-1}$ the equity, $I$ the capital, $r_t = E_t/E_{t-1}-1$ and $rf_p$ the risk-free rate divided by $P$.
+\begin{longtable}{@{}p{0.9cm}p{14.8cm}@{}}
+\toprule
+\textbf{Rule} & \textbf{Content} \\
+\midrule
+\endhead
+M1 & Final equity: $E_{n-1}$. \\
+M2 & Cumulative return: final equity / $I - 1$. \\
+M3 & Annualized return: (final equity / $I$)$^{1/\text{years}} - 1$, with years = days / 365.25; 0 if years $\leq 0$ or final equity $\leq 0$. \\
+M4 & Average return per period: mean of $r_t$ (0 if there is none). \\
+M5 & Annualized volatility: sample standard deviation of $r_t$ times $\sqrt{P}$; 0 with fewer than 2 returns. \\
+M6 & Sharpe: (mean($r_t$) $- rf_p$) / std($r_t$) $\times \sqrt{P}$; null with fewer than 2 returns or a zero standard deviation. \\
+M7 & Sortino: (mean($r_t$) $- rf_p$) / $DD \times \sqrt{P}$, with $DD = \sqrt{\sum\min(0, r_t - rf_p)^2 / n}$; null with fewer than 2 returns or $DD = 0$. \\
+M8 & Maximum drawdown: largest (peak $- E_t$) / peak, the peak starting at $I$. \\
+M9 & Calmar: annualized return / maximum drawdown; null if the drawdown is 0. \\
+M10 & Trade count and win rate: share of trades with a positive net profit (0 without trades). \\
+M11 & Profit factor: sum of gains / absolute sum of losses; null without a losing trade. \\
+M12 & Exposure: share of the points where a position is held. \\
+M13 & Benchmark: same formulas on its curve; 1 trade; win rate 1 if final equity $> I$, otherwise 0; profit factor null; exposure 1. \\
+M14 & Robustness: no NaN and no infinite value; an undefined ratio is null; a flat series or zero trades never throw an exception. \\
+\bottomrule
+\end{longtable}
+
+\subsection*{Optimisation heatmap}
+\begin{longtable}{@{}p{0.9cm}p{14.8cm}@{}}
+\toprule
+\textbf{Rule} & \textbf{Content} \\
+\midrule
+\endhead
+O1 & Axes: Min + $k \times$ Step while $\leq$ Max, rounded to 10 decimals. Two distinct parameters within their allowed bounds, integer values for an integer parameter, at most 625 cells. Any violation is a validation error. \\
+O2 & Cell: the base request with both parameters replaced, validated and simulated like a normal backtest; prices are loaded once. An invalid combination gives no value, no trade and its error message. An undefined metric gives no value and no error. \\
+O3 & Best cell: highest non-null value; ties broken by smallest $Y$, then smallest $X$. \\
+O4 & Overfitting warning: the average of the non-null values of the up to 8 neighbours of the best cell is computed. The peak is isolated if the best value is positive and this average is missing or below half of the best value. \\
+O5 & Cells are ordered row by row. The result is identical on each call, and cancellation is checked between two cells. \\
+\bottomrule
+\end{longtable}
+
+\subsection*{Data}
+\begin{longtable}{@{}p{0.9cm}p{14.8cm}@{}}
+\toprule
+\textbf{Rule} & \textbf{Content} \\
+\midrule
+\endhead
+D1 & Sources: the free Alpha Vantage endpoints, and seed files in the Alpha Vantage CSV format for AAPL, MSFT, SPY and JPM. \\
+D2 & Without refresh: a non-empty cache is returned with no API call. With an empty cache, the seed file is imported if it exists, otherwise the API is called, and the result is stored and returned. \\
+D3 & With refresh: API call, merge by date (insert or replace, never delete an older bar), return the merged series. On failure, the exception is raised and the cache stays intact. \\
+D4 & API call: quota first (limit reached: RateLimitExceeded with no call); missing key: MissingApiKey with no call. JSON errors received with HTTP 200: Error Message gives SymbolNotFound; Note or Information about the limit gives RateLimitExceeded; premium or any other text gives InvalidResponse. Network error or status other than 200 gives NetworkError. Each HTTP request sent counts, even if it fails. Two simultaneous calls for one series send one HTTP request. \\
+D5 & CSV: header \code{timestamp,open,high,low,close,volume}, descending order, possible CRLF, always parsed with the invariant culture. \\
+D6 & Adjustment: a series is adjusted only if all of its bars come from adjusted sources. \\
+D7 & Quality, on cached data only (otherwise NotCached). PriceJump if $|$Close / previous Close $- 1| > 0.25$; ZeroVolume if the volume is 0; StalePrice at the 5th identical close in a row (one anomaly per sequence); Gap if two bars are more than 5 calendar days apart (daily) or 10 days (weekly). Missing periods: weekdays without a bar (daily), or the sum over gaps $e$ of $\max(0, \text{round}(e/7) - 1)$ (weekly). \\
+D8 & Quota: counted per UTC day, reset at the next UTC midnight. \\
+\bottomrule
+\end{longtable}
+
+\clearpage
+\subsection*{Strategies and indicators}
+\begin{longtable}{@{}p{0.9cm}p{14.8cm}@{}}
+\toprule
+\textbf{Rule} & \textbf{Content} \\
+\midrule
+\endhead
+S1 & Pure and deterministic: no state between calls, no network, clock, file or randomness. A strategy simulates nothing. \\
+S2 & Exactly one signal per bar; Hold during warm-up; a series that is too short gives Hold, never an exception. \\
+S3 & No look-ahead (X3). \\
+S4 & If the buy and sell conditions are both true on a bar, the signal is Sell. \\
+S5 & A missing parameter takes its default. A violated relation between parameters (such as fast $\geq$ slow) is a validation error. \\
+S6 & Indicators follow S1 and S3 and have one value per bar (null during warm-up). \\
+I1 & SMA($n$): mean of the last $n$ values, defined from index $n-1$. \\
+I2 & EMA($n$): $\alpha = 2/(n+1)$; at index $n-1$, the SMA of the first $n$ values; then $\alpha x + (1-\alpha) \times$ previous. \\
+I3 & StdDev($n$): population standard deviation over the window. \\
+I4 & Bollinger($n,k$): middle = SMA($n$), upper and lower = middle $\pm k \times$ StdDev($n$). \\
+I5 & RSI($n$): Wilder. First averages of gains and losses at index $n$, then average = (previous $\times (n-1)$ + current) / $n$; RSI = $100 - 100/(1 + \text{gains}/\text{losses})$. Zero gains and losses give 50; zero losses alone give 100. \\
+I6 & ROC($n$): $x_i / x_{i-n} - 1$. \\
+I7 & MACD($f,s,g$): line = EMA($f$) $-$ EMA($s$), defined from index $s-1$; signal = EMA($g$) of the defined values of the line. The no-code builder uses 12, 26, 9. \\
+I8 & Highest high and lowest low($n$): over the $n$ previous bars, the current bar excluded; defined from index $n$. \\
+I9 & CrossesAbove($a,b,i$): $i \geq 1$, the four values defined, $a_{i-1} \leq b_{i-1}$ and $a_i > b_i$. CrossesBelow is symmetrical. \\
+\bottomrule
+\end{longtable}
+
+\subsection*{No-code strategies}
+\begin{longtable}{@{}p{0.9cm}p{14.8cm}@{}}
+\toprule
+\textbf{Rule} & \textbf{Content} \\
+\midrule
+\endhead
+R1 & Name of 1 to 60 characters after trimming, description of 0 to 500 characters, and an id derived from the name. \\
+R2 & Entry and exit have 1 to 5 conditions each; All means AND, Any means OR. \\
+R3 & Operands: a period is required for SMA, EMA, RSI, ROC, Bollinger, highest high and lowest low (integer from 1 to 500, or 2 to 500 for RSI and Bollinger) and forbidden elsewhere; a finite value is required for a constant and forbidden elsewhere; standard deviations are optional for Bollinger (0.5 to 5, default 2). \\
+R4 & A condition never compares two constants. \\
+R5 & Operand value at bar $i$: price or volume of the bar, or the indicator defined by I1 to I8, or the constant. \\
+R6 & GreaterThan: $a_i > b_i$; LessThan: $a_i < b_i$; crossings: I9. A condition is false if a required value is undefined. \\
+R7 & Entry true gives Buy; exit true gives Sell; both give Sell (S4); otherwise Hold. \\
+R8 & The resulting strategy has the Custom category, no parameter, daily and weekly timeframes, documentation generated from its rules, and one indicator series per distinct indicator operand. \\
+\bottomrule
+\end{longtable}
+
+\subsection*{Monte Carlo, train/test and comparator}
+\begin{longtable}{@{}p{0.9cm}p{14.8cm}@{}}
+\toprule
+\textbf{Rule} & \textbf{Content} \\
+\midrule
+\endhead
+MC1 & Inputs: the returns of the $k$ trades of the result, $k \geq 5$; from 100 to 10,000 simulations. Otherwise a validation error. \\
+MC2 & Draws: a single generator created from the seed; for each simulation, $k$ indices drawn with replacement. \\
+MC3 & Trajectory: $V_0 = 1$, $V_j = V_{j-1}(1 + r)$; final return $V_k - 1$; maximum drawdown of the trajectory, the peak starting at $V_0$. \\
+MC4 & Percentiles at 0.05, 0.25, 0.5, 0.75 and 0.95, by linear interpolation of the sorted values at position $p(S-1)$. \\
+MC5 & Probability of loss: share of final returns below 0. Actual values: MC3 applied to the real order of the trades. \\
+MC6 & Histograms: 20 equal-width bins between the minimum and the maximum, the last one closed; one single bin if the minimum equals the maximum. \\
+MC7 & The Monte Carlo drawdown is measured trade by trade. It is not comparable with the bar-by-bar maximum drawdown (M8), and the interface and the PDF say so. \\
+T1 & Selected period of $N$ bars; train fraction from 0.5 to 0.9, 0.7 by default; $n_{\text{train}} = \lfloor N \times \text{fraction} \rfloor$, with at least 2 training and 2 test bars. \\
+T2 & Train: bars $0$ to $n_{\text{train}}-1$; test: the remaining bars. The test backtest may use earlier bars for warm-up (X2), which is not an information leak. \\
+T3 & Heatmap on the training period, best parameters (O3), then one single backtest on the test period with the same execution settings. \\
+C1 & Comparator: 2 to 5 strategies on the same symbol, timeframe, period and execution settings, with one buy \& hold benchmark. \\
+\bottomrule
+\end{longtable}
+\normalsize
 
 \end{document}
