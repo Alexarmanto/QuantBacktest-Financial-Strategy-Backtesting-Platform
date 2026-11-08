@@ -10,6 +10,9 @@ internal static class ChartRenderer
     public const int Width = 1000;
     public const int Height = 420;
 
+    /// <summary>Sans-serif font installed by the Dockerfile; without it, ScottPlot falls back to a serif font on Linux.</summary>
+    private const string LinuxFont = "DejaVu Sans";
+
     private static readonly Color StrategyColor = Color.FromHex("#1f6feb");
     private static readonly Color BenchmarkColor = Color.FromHex("#8b949e");
     private static readonly Color DrawdownColor = Color.FromHex("#cf222e");
@@ -113,7 +116,7 @@ internal static class ChartRenderer
     /// </summary>
     public static byte[] Histogram(IReadOnlyList<HistogramBin> bins, string title, bool asLoss)
     {
-        var plot = new Plot();
+        var plot = CreatePlot();
         plot.Title(title);
         var sign = asLoss ? -1 : 1;
         var bars = bins.Select(bin => new Bar
@@ -167,10 +170,21 @@ internal static class ChartRenderer
 
     internal static Plot NewPlot(string title)
     {
-        var plot = new Plot();
+        var plot = CreatePlot();
         plot.Title(title);
         plot.Axes.DateTimeTicksBottom();
         plot.Legend.Alignment = Alignment.UpperLeft;
+        return plot;
+    }
+
+    private static Plot CreatePlot()
+    {
+        var plot = new Plot();
+        if (OperatingSystem.IsLinux())
+        {
+            plot.Font.Set(LinuxFont);
+        }
+
         return plot;
     }
 
