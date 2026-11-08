@@ -2,6 +2,20 @@
 
 ## Objective
 
+Part 1 gives the rest of the platform clean, reproducible price series, keeps what users save, turns a finished
+backtest into documents, and makes the application runnable with one command. It is the only part that talks to
+Alpha Vantage and the only part that writes to the database. The other parts only see the interfaces of `Core`.
+
+This section covers sections 3 (data layer) and 8 (reports and deployment) of the final report.
+
+| Interface (`Core`) | Implementation | Project | Role |
+|---|---|---|---|
+| `IMarketDataService` | `MarketDataService` | `QuantBacktest.Data` | Price series, cached symbols, data quality report, API quota |
+| `ICustomStrategyStore` | `SqliteCustomStrategyStore` | `QuantBacktest.Data` | Persistence of the no-code strategies |
+| `IReportGenerator` | `PdfReportGenerator` | `QuantBacktest.Reports` | PDF report and trades CSV |
+
+The classes behind them stay `internal`: no `DbContext`, entity or HTTP client is visible outside the project.
+
 ## Design choices
 
 ### Alpha Vantage free plan: endpoint spike (P1-D5)
@@ -117,8 +131,113 @@ Refusals arrive with HTTP 200 as a JSON `Information` message, even when CSV is 
 
 ## How it works
 
+### Loading a series (rules D2, D3, D4)
+
+`GetSeriesAsync(symbol, timeframe, forceRefresh)` first trims and upper-cases the symbol and checks it against
+`Conventions.SymbolPattern`. Then:
+
+1. **Without refresh, cache not empty**: the cached series is returned and no API call is made, so the same backtest
+   always gives the same result.
+2. **Without refresh, cache empty**: the seed file `data/seed/<SYMBOL>_<timeframe>.csv` is imported if it exists
+   (origin `Seed`); otherwise the API is called (origin `Api`).
+3. **With refresh**: the API is called and the bars are merged by date. If the call fails, the exception reaches the
+   caller and the cache is unchanged. Adding API bars to a seed series changes its origin to `Mixed`.
+
+### One call to Alpha Vantage (rule D4)
+
+1. The quota is checked: when `UsedToday >= DailyRequestLimit`, the service raises `RateLimitExceeded` without calling.
+2. The key is checked: when it is missing, the service raises `MissingApiKey` without calling or counting.
+3. The request is counted in `ApiUsage`, then sent, so a failed request counts too.
+4. A network error, a timeout or a status other than 200 gives `NetworkError`.
+5. A body that starts with `{` is a JSON error sent with HTTP 200: it is classified and raised.
+6. Otherwise the CSV is parsed, the bars are merged and the merged series is returned.
+
+Simultaneous calls for one series go through one lock per (symbol, timeframe) and share the download in progress:
+ten simultaneous calls send one HTTP request.
+
+### Data quality report (rule D7)
+
+`GetQualityReportAsync` reads the cache only and raises `NotCached` otherwise. One pass over the bars finds the
+anomalies, the largest calendar gap and the missing periods. On the real data it flags, for example, the 11-day gap
+of SPY in September 2001, when the US markets closed after the 11 September attacks.
+
+### PDF report
+
+`PdfReportGenerator` receives a finished `BacktestResult` and, optionally, a `MonteCarloResult`. `ReportContent` turns
+them into texts, `ChartRenderer` draws the PNG charts and `BacktestReportDocument` lays out the pages:
+
+| Page | Content |
+|---|---|
+| 1 | Settings, entry and exit rules of a no-code strategy, "not adjusted" warning, 13 metrics against buy & hold, equity curve |
+| 2 | Strategy drawdown, closes with price indicators and trade markers, oscillators when there are any |
+| 3 and following | Trade log, with the header repeated on each page |
+| Last (optional) | Monte Carlo: settings, percentiles, probability of loss, actual values, two histograms |
+
+### Running with Docker
+
+```bash
+cp .env.example .env          # optional: put the Alpha Vantage key in it
+docker compose up --build     # then open http://localhost:8080
+```
+
+The image is built only when the whole solution compiles with `-warnaserror` and every test passes. The database is
+kept in the named volume `quantbacktest-data` when the container is recreated.
+
 ## Tests
+
+The tests use xUnit and FluentAssertions, and each one cites the rule it checks. They are deterministic: HTTP goes
+through a fake handler that counts the calls, the clock is injected, and each database is a temporary SQLite file
+deleted after the test.
+
+| Project | Tests | What they cover |
+|---|---|---|
+| `QuantBacktest.Data.Tests` | 124 | CSV parser (also under `fr-FR`), each D4 error case, key never in a message or a log, D2/D3 algorithm, origin, quota and its UTC reset, concurrency, adjustment, `PriceSeries` invariants, merge by date, strategy store round trip, the 4 quality anomalies with values computed by hand, committed seed files, end-to-end dependency injection |
+| `QuantBacktest.Reports.Tests` | 55 | Display formats, every cell of the metrics table, page count, A4 format, date from the injected clock, 0 to 1,000 trades, 2 bars, no indicators, Monte Carlo page, CSV compared character by character with a hand-written string |
+
+Checks done by hand, in addition to the automated tests:
+
+- **Real API**: a refresh of MSFT daily added the new bar by merge (101 bars), the origin became `Mixed`, the quota
+  counted 1 request, and the key did not appear in the program output.
+- **Docker**: `docker compose up --build` on Docker Desktop built the image with the tests inside it. The application
+  answered on port 8080, ran as the non-root `app` user and created its database in the `/data` volume.
+- **Real PDF**: for MSFT weekly with the SMA crossover, the 15 net profits add up to the final equity (10,000 +
+  85,964.29 = 95,964.29), and the cumulative return, annualized return, Calmar ratio, win rate and profit factor were
+  recomputed by hand from the printed values and match.
 
 ## Screenshots
 
+| File | Caption |
+|---|---|
+| `images/part1-01-ci-green.png` | GitHub Actions: the continuous integration workflow is green. |
+| `images/part1-02-branch-protection.png` | Branch protection rule of `main`. |
+| `images/part1-05-sqlite-tables.png` | The SQLite cache: the four tables and rows of `PriceBars`. |
+| `images/part1-06-cache-tests.png` | Tests of the D2/D3 algorithm and of the quota passing. |
+| `images/part1-07-no-key-in-logs.png` | Application log during an API call: the key does not appear. |
+| `images/part1-08-pdf-page1.png` | PDF report, page 1: settings, metrics against buy & hold, equity curve. |
+| `images/part1-09-pdf-page2.png` | PDF report, page 2: drawdown, closes, indicators and trade markers. |
+| `images/part1-10-pdf-trades.png` | PDF report: trade log. |
+| `images/part1-11-quality-tests.png` | Test of the four data quality anomalies passing. |
+| `images/part1-12-pdf-montecarlo.png` | PDF report: Monte Carlo page. |
+| `images/part1-13-docker-up.png` | `docker compose up --build` and the application on port 8080. |
+
+The endpoint spike is recorded as a table in Design choices.
+
 ## Limitations
+
+- **Short daily history.** The free plan gives 100 daily bars, so long backtests, the heatmap and train/test are
+  more meaningful in weekly.
+- **Daily prices are not adjusted.** A split inside the 100 daily bars would appear as a price jump. The report and
+  the quality page make this visible, but the prices are not corrected.
+- **Frozen seed files.** They are snapshots taken on 2026-10-15. Their last weekly bar (2026-10-14) is a week still in
+  progress at that date. A refresh updates a series on demand.
+- **Seed data licensing.** The seed files are Alpha Vantage data committed for this academic project. No third-party
+  source was added, but Alpha Vantage's redistribution terms were not reviewed for any wider use.
+- **Local quota counter.** It only counts the requests of this application. Requests made with the same key elsewhere
+  are unknown to it, and Alpha Vantage may then refuse a call earlier than the counter suggests.
+- **Blocking catalog lookup.** `IReportGenerator.GeneratePdf` is synchronous by contract, so reading the rules of a
+  no-code strategy waits on an asynchronous call.
+- **PDF text is not read by the tests.** No package to extract PDF text is allowed, so the printed texts are tested
+  before layout (`ReportContent`) and the page structure through the document itself.
+- **Monte Carlo histograms.** The bins have equal width (rule MC6), so one very large resampled return can squeeze the
+  final return histogram into a few bars. The percentile table remains readable.
+- **ASP.NET data protection keys** are stored in the container and are regenerated when it is recreated.
